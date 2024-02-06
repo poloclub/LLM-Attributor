@@ -1,0 +1,7 @@
+*wandb
+*.ipynb_checkpoints
+*nanoGPT/
+*__pycache__
+data/
+*bin/
+
