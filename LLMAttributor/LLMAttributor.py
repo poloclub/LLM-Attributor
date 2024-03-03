@@ -3,6 +3,12 @@ from tqdm import tqdm
 import time 
 import json 
 import gc
+import random
+
+import pkgutil 
+import html 
+import base64 
+import re 
 
 import numpy as np
 import torch 
@@ -14,9 +20,10 @@ import datasets
 from contextlib import nullcontext
 from peft import PeftConfig, PeftModel, LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
 
-from IPython.display import display, HTML
+from IPython.display import display_html, HTML
 
 import matplotlib
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -75,6 +82,10 @@ class LLMAttributor:
         self.set_dataset(train_dataset, val_dataset, test_dataset, split_data_into_multiple_batches=split_data_into_multiple_batches)
 
         # TBU: if a model directory/checkpoint have been specified, load the model
+
+        # location of this project
+        self.project_dir = os.path.dirname(__file__)
+
 
     def set_dataset(self, train_dataset, val_dataset=None, test_dataset=None, split_data_into_multiple_batches=False):
         self.train_dataset = self._tokenize_dataset(train_dataset, block_size=self.block_size, split_data_into_multiple_batches=split_data_into_multiple_batches)
@@ -247,37 +258,45 @@ class LLMAttributor:
         if return_decoded: return self.tokenizer.decode(output, skip_special_tokens=True)
         else: return output
     
-    def set_attr_prompt(self, prompt=None, prompt_ids=None, generated_text=None, generated_ids=None, attr_text=None, attr_text_ids=None, attr_tokens_pos=None, attr_attention_mask=None): 
+    def set_attr_text(self, prompt=None, prompt_ids=None, generated_text=None, generated_ids=None, entire_text=None, entire_text_ids=None, attr_tokens_pos=None, attr_attention_mask=None): 
         # prompt: input prompt without generated text (groundtruth answer)
         # attr_text: include both input prompt and generated text (groundtruth answer)
-        assert prompt is not None or prompt_ids is not None or ((attr_text is not None or attr_text_ids is not None) and attr_tokens_pos is not None)
+        assert prompt is not None or prompt_ids is not None or ((entire_text is not None or entire_text_ids is not None) and attr_tokens_pos is not None)
+
+        self.prompt = prompt 
+        self.generated_text = generated_text 
         
         if prompt_ids is None: prompt_ids = self._text_to_ids(prompt)
-        prompt_ids = torch.LongTensor(prompt_ids).to(self.device).reshape(1,-1)
-        self.attr_prompt_token_len = prompt_ids.shape[1]
+        if generated_ids is None: generated_ids = self._text_to_ids(generated_text)
+        self.prompt_ids = torch.LongTensor(prompt_ids).to(self.device).reshape(1,-1)
+        self.generated_ids = torch.LongTensor(generated_ids).to(self.device).reshape(1,-1)
+        self.prompt_token_num = self.prompt_ids.shape[1]
 
-        if attr_text is None and attr_text_ids is None and generated_text is None and generated_ids is None:
-            # generate attr_text from prompt
-            attr_text_ids = self.generate(prompt=prompt, max_new_tokens=self.max_new_tokens, return_decoded=False)
-            attr_text = self.tokenizer.decode(attr_text_ids[0], skip_special_tokens=True)
-        elif attr_text is None and attr_text_ids is None and (generated_text is not None or generated_ids is not None):
-            pass
+        # if entire_text is None and entire_text_ids is None and generated_text is None and generated_ids is None:
+        #     # generate attr_text from prompt
+        #     entire_text_ids = self.generate(prompt=prompt, max_new_tokens=self.max_new_tokens, return_decoded=False)
+        #     entire_text = self.tokenizer.decode(entire_text_ids[0], skip_special_tokens=True)
+        # elif entire_text is None and entire_text_ids is None and (generated_text is not None or generated_ids is not None):
+        #     pass
 
-        if attr_text_ids is None: attr_text_ids = self._text_to_ids(attr_text)
-        self.attr_text_ids = torch.LongTensor(attr_text_ids).reshape(1,-1).to(self.device)
-        attr_text_token_len = self.attr_text_ids.shape[1]
+        if entire_text is None: entire_text = self.prompt + self.generated_text
+        if entire_text_ids is None: entire_text_ids = self._text_to_ids(entire_text)
+        
+        self.entire_text_ids = torch.LongTensor(entire_text_ids).reshape(1,-1).to(self.device)
+        self.entire_text_token_num = self.entire_text_ids.shape[1]
         self.attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(self.device) if attr_tokens_pos is not None else None
         if self.attr_tokens_pos is None: 
-            self.attr_tokens_pos = torch.arange(self.attr_prompt_token_len, attr_text_token_len).to(self.device)
-            code = self.select_attr_tokens_pos()
+            self.attr_tokens_pos = torch.arange(self.prompt_token_num, self.entire_text_token_num).to(self.device)
+            # code = self.select_attr_tokens_pos()
+            code = None
         else: code = None
-        self.attr_attention_mask = torch.Tensor(attr_attention_mask).to(self.device) if attr_attention_mask is not None else torch.ones_like(self.attr_text_ids).to(self.device)
+        self.attr_attention_mask = torch.Tensor(attr_attention_mask).to(self.device) if attr_attention_mask is not None else torch.ones_like(self.entire_text_ids).to(self.device)
         self.scores = None 
         
         return code
 
     def _text_to_ids(self, text):
-        return torch.LongTensor(self.tokenizer(text, return_tensors="pt")["input_ids"])
+        return torch.LongTensor(self.tokenizer(text, return_tensors="pt")["input_ids"])[:,1:]
 
     def _ids_to_text(self, tokens):
         return self.tokenizer.decode(tokens, skip_special_tokens=True)
@@ -287,137 +306,111 @@ class LLMAttributor:
         self.attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(self.device)
         self.attr_grad = None
         self.scores = None
-    
+
+    def get_tokens_html_code(self, token_ids, attention_mask=None):
+        random_int = random.randint(0, 1000000)
+        random_id = f"tokens-container-{random_int}"
+        text_html_code = f"<div class='tokens-container' id='{random_id}'>"
+        nobr_closed = True
+
+        if attention_mask is None: attention_mask = np.ones(len(token_ids))
+
+        for i, token_id in enumerate(token_ids):
+            token_decoded = self.tokenizer.convert_ids_to_tokens([token_id])[0]
+            class_name = "token attended-token" if attention_mask[i] == 1 else "token unattended-token"
+            if token_decoded=="<0x0A>": 
+                class_name += " line-break-token"
+                if nobr_closed : text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'>&#182</div><br>"
+                else: text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'>&#182</div></nobr><br>"
+                nobr_closed = True
+                continue
+
+            if "<" in token_decoded: token_decoded = token_decoded.replace("<", "&lt;")
+            if ">" in token_decoded: token_decoded = token_decoded.replace(">", "&gt;")
+
+            if "▁" == token_decoded:
+                class_name += " space-token"
+                token_decoded = "&nbsp;"
+                html_code = f"<div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
+                if not nobr_closed: html_code = html_code + "</nobr>"
+            elif "▁" == token_decoded[0]: 
+                if i>0: class_name += " left-space-token"
+                token_decoded = token_decoded[1:]
+                html_code = f"<nobr><div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
+                nobr_closed = False 
+            else:
+                html_code = f"<div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
+            
+            text_html_code += html_code
+        
+        if not nobr_closed: text_html_code += "</nobr>"
+        text_html_code += "</div>"
+
+        return text_html_code, random_id 
+
+    def generate_html_for_str(self, token_ids, attention_mask=None):
+        if type(token_ids) == torch.Tensor: token_ids = token_ids.detach().cpu().numpy()
+        if token_ids.ndim==2: token_ids = token_ids.reshape(-1)
+        if attention_mask is None: attention_mask = np.ones_like(token_ids)
+
+        html_code_filename = os.path.join(self.project_dir, "visualization/html/training_data_string.html")
+        css_code_filename = os.path.join(self.project_dir, "visualization/css/styles.css")
+        
+        html_code = open(html_code_filename, "r").read()
+        css_code = "<style>" + open(css_code_filename, "r").read() + "</style>"
+
+        text_html_code, random_id = self.get_tokens_html_code(token_ids, attention_mask)
+        html_code = html_code.replace("<!--tokens-slot-->", text_html_code)
+        html_code = html_code.replace("<!--style-slot-->", css_code)
+        
+        return html_code, random_id
+
     def select_attr_tokens_pos(self):
-        def generate_html_for_str(tokens=None, prompt_len=None):
-            if type(tokens) == torch.Tensor: tokens = tokens.detach().cpu().numpy()
-            if tokens.ndim==2: tokens = tokens.reshape(-1)
-            assert tokens is not None
-
-            html_code = "<div>"
-            
-            for i, token in enumerate(tokens): 
-                token_decoded = self.tokenizer.convert_ids_to_tokens([token])[0]
-                if token_decoded=="<0x0A>": 
-                    html_code += "<br>"
-                    continue
-                if "▁" in token_decoded: token_decoded = token_decoded.replace("▁", "&nbsp;")
-                if "<" in token_decoded: token_decoded = token_decoded.replace("<", "&lt;")
-                if ">" in token_decoded: token_decoded = token_decoded.replace(">", "&gt;")
-
-                text_color = "#000000"
-                cursor = "pointer"
-                if prompt_len is not None and i < prompt_len: 
-                    text_color = "#808080"
-                    cursor = "auto"
-                html_code += f"<div style='color: {text_color}; display: inline-block; cursor: {cursor}; user-select: none; user-drag: none; -webkit-user-drag: none; -moz-user-select: none; -webkit-user-select: none; -ms-user-select: none;' id='token-{i}' onmousedown='mousedown_token(this, {prompt_len})' onmouseenter='mouseenter_token(this, {prompt_len})' onmouseout='mouseout_token(this)'>{token_decoded}</div>"
-
-            html_code += "</div>"
-            return html_code 
+        generated_mask = np.ones([self.entire_text_token_num])
+        generated_mask[:self.prompt_token_num] = 0
+        html_code, tokens_container_id = self.generate_html_for_str(token_ids=self.entire_text_ids, attention_mask=generated_mask)
         
-        total_token_num = self.attr_text_ids.shape[1]
-        highlight_color = "#ff0000"
-        javascript_code = f"""
-        <script type="text/Javascript">
-            window.startToken = -1;
-            window.beingDragged = false;
-            window.selecting = false;
-            
-            document.addEventListener('mouseup', (e) => {{
-                if (window.beingDragged) {{
-                    for (let i={self.attr_prompt_token_len}; i<{total_token_num}; i++) {{
-                        if (document.getElementById(`token-${{i}}`) == null) continue;
-                        document.getElementById(`token-${{i}}`).selected = document.getElementById(`token-${{i}}`).newSelected;
-                        document.getElementById(`token-${{i}}`).style.color = document.getElementById(`token-${{i}}`).selected?"{highlight_color}":"black";
-                    }}
-                }}
-                
-                window.startToken = -1;
-                window.beingDragged = false;
-                window.selecting = false;
-                
-            }})
-            
-            function mousedown_token(token, prompt_len) {{
-                // if mouse being clicked, from start to this one, change to red
-                let clickedTokenIdx = Number(token.id.split("-")[1]);
-                
-                if (clickedTokenIdx >= prompt_len) {{
-                    window.beingDragged = true;
-                    
-                    if (token.newSelected) {{token.newSelected = false; window.selecting=false;}}
-                    else {{token.newSelected = true; window.selecting=true;}}
+        random_int_id = tokens_container_id.split("-")[-1]
+        button_code = f"""<button class="copy-selected-token-idx-button" id="copy-selected-token-idx-button-{random_int_id}" type="button">Copy Selected Token Indices</button>
+        <div class="selected-token-indices" id="selected-token-indices-{random_int_id}"></div>"""
+        html_code = html_code.replace("<!--button-slot-->", button_code)
 
-                    window.startToken = clickedTokenIdx;
-                    if (window.selecting) token.style.color = "{highlight_color}";
-                    else token.style.color = "#000000";
-                }}
-            }}
-            
-            function mouseenter_token(token, prompt_len) {{
-                if ((Number(token.id.split("-")[1])) >= prompt_len) token.style.backgroundColor = "{highlight_color}80"; //highlight this one's background always
-                if (window.beingDragged) {{
-                    let enteredTokenIdx = Number(token.id.split("-")[1]);
-                    let start = Math.min(enteredTokenIdx, window.startToken);
-                    let end = Math.max(enteredTokenIdx, window.startToken);
-                    for (let i=prompt_len; i<{total_token_num}; i++) {{
-                        if (document.getElementById(`token-${{i}}`) == null) continue;
-                        if ((i>=start)&&(i<=end)) {{
-                            document.getElementById(`token-${{i}}`).newSelected = window.selecting;
-                            document.getElementById(`token-${{i}}`).style.color = window.selecting?"{highlight_color}":"black";
-                        }}
-                        else {{
-                            document.getElementById(`token-${{i}}`).newSelected = document.getElementById(`token-${{i}}`).selected;
-                            document.getElementById(`token-${{i}}`).style.color = document.getElementById(`token-${{i}}`).newSelected?"{highlight_color}":"black";
-                        }}
-                    }}
-                }}
-            }}
-            
-            function mouseout_token(token) {{
-                token.style.backgroundColor = "#00000000";
-            }}
-            
-            function showHighlightedTokenIndices() {{
-                let highlightedTokenIndices = [];
-                for (let i=0; i<{total_token_num}; i++) {{
-                    if (document.getElementById(`token-${{i}}`) == null) {{
-                        if (i == 0) continue; // if the only token or first, skip
-                        else if (i == {total_token_num} - 1) {{
-                            if (highlightedTokenIndices.includes(i-1)) highlightedTokenIndices.push(i)
-                        }}
-                        else {{
-                            if (highlightedTokenIndices.includes(i-1) && (document.getElementById(`token-${{i+1}}`)!=null) && (document.getElementById(`token-${{i+1}}`).selected)) highlightedTokenIndices.push(i)
-                        }}
-                    }}
-                    else if (document.getElementById(`token-${{i}}`).selected) {{
-                        highlightedTokenIndices.push(i);
-                    }}
-                }}
-
-                let highlightedTokenIndicesStr = highlightedTokenIndices.toString();
-                document.getElementById("highlighted-token-indices").innerHTML = highlightedTokenIndicesStr;
-                navigator.clipboard.writeText("["+highlightedTokenIndicesStr+"]");
-            }}
-        </script>
+        message_js = f"""
+        (function() {{
+            const event = new Event('selectAttrTokensPos');
+            event.token_container_id = '{tokens_container_id}';
+            event.prompt_token_num = {self.prompt_token_num};
+            event.total_token_num = {self.entire_text_token_num};
+            document.dispatchEvent(event);
+        }}())
         """
-
-        html_code = generate_html_for_str(tokens=self.attr_text_ids, prompt_len=self.attr_prompt_token_len)
-        html_code += """
-        <button onclick="showHighlightedTokenIndices()" style="margin-top: 5px; font-size: 14px;">Copy Highlighted Token Indices</button>
-        <div id="highlighted-token-indices" style="display: inline-block; padding-left: 3px; font-size: 14px;"></div>
-        """
+        message_js = message_js.encode()
+        messenger_js_base64 = base64.b64encode(message_js).decode("utf-8")
+        message_js = f"""<script src='data:text/javascript;base64,{messenger_js_base64}'></script>"""
+        html_msg_code = html_code.replace("<!--message-slot-->", message_js)
         
-        return html_code + javascript_code
-    
+        js_code_filename = os.path.join(self.project_dir, "visualization/js/token_select_events.js")
+        js_string = open(js_code_filename, "r").read()
+        js_b = bytes(js_string, encoding="utf-8")
+        js_base64 = base64.b64encode(js_b).decode("utf-8")
+        html_msg_js_code = html_msg_code.replace("<!--js-slot-->", f"""<script data-notebookMode="true" data-package="{__name__}" src='data:text/javascript;base64,{js_base64}'></script>""")
+
+        iframe = f"""
+        <iframe 
+            srcdoc="{html.escape(html_msg_js_code)}" 
+            frameBorder="0" 
+            width="100%">
+        """
+        display_html(iframe, raw=True)
+
     def set_attr_grad(self):
         logsoftmax = nn.LogSoftmax(dim=-1)
         self.model.eval()
         self.model.zero_grad()
-        out = self.model.base_model(self.attr_text_ids, self.attr_attention_mask)
+        out = self.model.base_model(self.entire_text_ids, self.attr_attention_mask)
         attr_logits = out.logits 
         attr_logprobs = logsoftmax(attr_logits) 
-        attr_logprobs = attr_logprobs[0, self.attr_tokens_pos-1, self.attr_text_ids[0, self.attr_tokens_pos]]
+        attr_logprobs = attr_logprobs[0, self.attr_tokens_pos-1, self.entire_text_ids[0, self.attr_tokens_pos]]
         attr_logprob = attr_logprobs.sum() 
         self.attr_grad = torch.autograd.grad(attr_logprob, [param for param in self.model.parameters() if param.requires_grad])
         self.model.zero_grad()
@@ -463,7 +456,7 @@ class LLMAttributor:
             
             self.clear_model()
 
-    def get_datainf_scores(self, ckpt_name=None, ckpt_names=None, integrated=True, weighted=False, weight=None, verbose=False, override=True):
+    def get_datainf_scores(self, ckpt_name=None, ckpt_names=None, integrated=True, integration="mean", weighted=False, weight=None, verbose=False, override=True):
         if ckpt_names is not None: ckpt_names = ckpt_names
         elif ckpt_name is not None: ckpt_names = [ckpt_name] 
         else: ckpt_names = self.ckpt_names
@@ -487,9 +480,11 @@ class LLMAttributor:
             assert weight is not None
             integrated_scores = None 
             raise NotImplementedError
-        elif integrated: 
-            # integrated_scores = np.mean(np.abs(list(all_scores.values())), axis=0)  
-            integrated_scores = np.mean(list(all_scores.values()), axis=0)  
+        elif integrated and integration=="mean": 
+            integrated_scores = np.mean(list(all_scores.values()), axis=0)
+            self.scores = integrated_scores
+        elif integrated and integration=="median": 
+            integrated_scores = np.median(list(all_scores.values()), axis=0)
             self.scores = integrated_scores
         else: self.scores = all_scores
         return self.scores
@@ -541,14 +536,214 @@ class LLMAttributor:
             # save the scores to score_dir 
             with open(score_dir, "w") as f: json.dump(scores.tolist(), f)
 
-    def get_topk_training_data(self, k=10, return_scores=False):
-        if self.scores is None: scores = self.get_datainf_scores(integrated=True)
+    def get_topk_training_data(self, k=3, return_scores=False, override=True, integration="mean"):
+        if self.scores is None: scores = self.get_datainf_scores(integrated=True, integration=integration, override=override)
+        else: scores = self.scores 
+
         topk_training_idx = np.argsort(-scores)[:k]
         topk_train_data = []
         for idx in topk_training_idx:
             topk_train_data.append(self.train_dataset[int(idx)])
         if return_scores: return topk_training_idx, topk_train_data, scores[topk_training_idx]
         return topk_training_idx, topk_train_data
+    
+    def tf_idf_topk_training_data(self, k, topk_data_text):
+        # get TF from the topk training data
+        tf_dict = dict()
+        for data_i, text in enumerate(topk_data_text):
+            for word in text.split(" "):
+                word = word.strip(".,?!:;`'\"()[]\{\}<>-_=+*^&%$#@~|\\/\n\t\r\v\f").lower()
+                if word in tf_dict: tf_dict[word][data_i:] += 1
+                else: tf_dict[word] = np.array([0] * data_i + [1] * (k - data_i))
+
+        # get IDF based on the entire training data
+        idf_dict = {word: 0 for word in tf_dict.keys()}
+        for data in self.train_dataset:
+            if "text" in data: text = data["text"]
+            elif "input_ids" in data: text = self._ids_to_text(data["input_ids"])
+            for word in set([word.strip(".,?!:;`'\"()[]\{\}<>-_=+*^&%$#@~|\\/\n\t\r\v\f").lower() for word in re.split("\s|\.|\n\;", text)]):
+                if word in idf_dict: idf_dict[word] += 1
+
+        for word in idf_dict.keys():
+            idf_dict[word] = np.log(len(self.train_dataset) / (idf_dict[word] + 1))
+
+        # get TF-IDF
+        tfidf_dict = {word: tf_dict[word] * idf_dict[word] for word in tf_dict.keys()}
+        return tfidf_dict
+        
+
+    def visualize_attributed_training_data(self, pos_max_num=10, neg_max_num=10):
+        vis_dir = os.path.join(self.project_dir, "visualization")
+
+        base_html_code = open(os.path.join(vis_dir, "html/attribution.html"), "r").read()
+        css_code = f"<style>{open(os.path.join(vis_dir, 'css/attribution.css'), 'r').read()}</style>"
+
+        base_html_code = base_html_code.replace("<!--bird-in-hat-icon-->", f"{open(os.path.join(vis_dir, 'icons/bird-in-hat.svg'), 'r').read()}")
+        base_html_code = base_html_code.replace("<!--up-icon-->", f"{open(os.path.join(vis_dir, 'icons/up.svg'), 'r').read()}")
+        base_html_code = base_html_code.replace("<!--down-icon-->", f"{open(os.path.join(vis_dir, 'icons/down.svg'), 'r').read()}")
+
+        styled_html_code = base_html_code.replace("<!--style-slot-->", css_code)
+        prompt_html_code = f"<div class='prompt'>{self.prompt}</div>"
+        # generated_text_html_code = f"<div class='generated-text'>{self.generated_text}</div>"
+        generated_text_selected_indices = (self.attr_tokens_pos - self.prompt_token_num).cpu().numpy()
+        generated_text_selected_mask = np.zeros(len(self.generated_ids[0]))
+        generated_text_selected_mask[generated_text_selected_indices] = 1
+        generated_text_html_code, generated_text_html_container_id = self.get_tokens_html_code(self.generated_ids[0], generated_text_selected_mask)
+        generated_text_html_code = f"<div class='generated-text' id='{generated_text_html_container_id}'>{generated_text_html_code}</div>"
+        prompt_added_html_code = styled_html_code.replace("<!--prompt-slot-->", prompt_html_code)
+        generated_added_html_code = prompt_added_html_code.replace("<!--generated-text-slot-->", generated_text_html_code)
+
+        indices, data, scores = self.get_topk_training_data(k=len(self.train_dataset), override=False, return_scores=True, integration="median")  # TODO: update override
+        scores = [float("{:.2e}".format(score)) for score in scores]
+        
+        # split train_idx, train_data, topk_scores into positive and negative
+        positive_attribution, negative_attribution = [], []
+        for i, (idx, d, score) in enumerate(zip(indices, data, scores)):
+            if len(positive_attribution) >= pos_max_num : break
+            if score <= 0: break
+
+            previous_token_ids = self.get_previous_context(int(idx))
+            next_token_ids = self.get_next_context(int(idx))
+            attention_mask = [0] * len(previous_token_ids) + [1] * len(d["input_ids"]) + [0] * len(next_token_ids)
+            token_ids = previous_token_ids + d["input_ids"] + next_token_ids
+            text_html_code, tokens_container_id = self.get_tokens_html_code(token_ids, attention_mask)
+            
+            data_dict = {
+                "text": self._ids_to_text(d["input_ids"]),
+                "text_html_code": text_html_code,
+                "tokens_container_id": tokens_container_id,
+                "title": d["title"],
+                "score": score,
+                "data_index": idx,
+            }
+            
+            if score > 0 and len(positive_attribution) < pos_max_num: positive_attribution.append(data_dict)
+            
+        indices = indices[::-1]
+        data = data[::-1]
+        scores = scores[::-1]
+
+        for i, (idx, d, score) in enumerate(zip(indices, data, scores)):
+            if len(negative_attribution) >= neg_max_num : break
+            if score >= 0: break
+
+            previous_token_ids = self.get_previous_context(int(idx))
+            next_token_ids = self.get_next_context(int(idx))
+            attention_mask = [0] * len(previous_token_ids) + [1] * len(d["input_ids"]) + [0] * len(next_token_ids)
+            token_ids = previous_token_ids + d["input_ids"] + next_token_ids
+            text_html_code, tokens_container_id = self.get_tokens_html_code(token_ids, attention_mask)
+            
+            data_dict = {
+                "text": self._ids_to_text(d["input_ids"]),
+                "text_html_code": text_html_code,
+                "tokens_container_id": tokens_container_id,
+                "title": d["title"],
+                "score": score,
+                "data_index": idx,
+            }
+            
+            if score < 0 and len(negative_attribution) < neg_max_num: negative_attribution.append(data_dict)
+
+        # histogram
+        n_bins = 12
+        counts, bins = np.histogram(scores, bins=n_bins)
+        for data_dict in positive_attribution:
+            data_dict["score_histogram_bin"] = min(np.digitize(data_dict["score"], bins)-1, n_bins-1)
+        for data_dict in negative_attribution:
+            data_dict["score_histogram_bin"] = np.digitize(data_dict["score"], bins)-1
+
+        scoreHistogramCounts = [[bins[i], bins[i+1], counts[i]] for i in range(len(counts))]
+
+        # tf-idf
+        pos_tf_idf = self.tf_idf_topk_training_data(pos_max_num, [d["text"] for d in positive_attribution])
+        neg_tf_idf = self.tf_idf_topk_training_data(neg_max_num, [d["text"] for d in negative_attribution])
+        
+        # sort TF-IDF
+        N = 10
+        topN_word_indices_for_each_topk_pos = np.argsort(-np.array(list(pos_tf_idf.values())), axis=0)[:N,:].T
+        word_indices = list(pos_tf_idf.keys())
+        topN_words_for_each_topk_pos = [[[word_indices[i], pos_tf_idf[word_indices[i]][j]] for i in topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
+
+        topN_word_indices_for_each_topk_neg = np.argsort(-np.array(list(neg_tf_idf.values())), axis=0)[:N,:].T
+        word_indices = list(neg_tf_idf.keys())
+        topN_words_for_each_topk_neg = [[[word_indices[i], neg_tf_idf[word_indices[i]][j]] for i in topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
+
+
+        # send all the positively/negatively attributed data and their scores through message
+        message_js = f"""
+        (function() {{
+            const event = new Event('attribute');
+            event.positiveAttribution = {positive_attribution};
+            event.negativeAttribution = {negative_attribution};
+            event.positiveMaxNum = {pos_max_num};
+            event.negativeMaxNum = {neg_max_num};
+            event.posTfIdf = {topN_words_for_each_topk_pos};
+            event.negTfIdf = {topN_words_for_each_topk_neg};
+            event.scoreHistogramCounts = {list(scoreHistogramCounts)};
+            event.scoreHistogramBins = {list(bins)};
+            document.dispatchEvent(event);
+        }}())
+        """
+        message_js = message_js.encode()
+        messenger_js_base64 = base64.b64encode(message_js).decode("utf-8")
+        message_js = f"""<script src='data:text/javascript;base64,{messenger_js_base64}'></script>"""
+        html_msg_code = generated_added_html_code.replace("<!--message-slot-->", message_js)
+
+        js_code_filename = os.path.join(vis_dir, "js/attribution.js")
+        js_string = open(js_code_filename, "r").read()
+        js_b = bytes(js_string, encoding="utf-8")
+        js_base64 = base64.b64encode(js_b).decode("utf-8")
+        html_msg_js_code = html_msg_code.replace("<!--js-slot-->", f"""<script data-notebookMode="true" data-package="{__name__}" src='data:text/javascript;base64,{js_base64}'></script>""")
+
+        iframe = f"""
+        <iframe 
+            srcdoc="{html.escape(html_msg_js_code)}" 
+            frameBorder="0" 
+            width="100%"
+            height="2000px">
+        </iframe>"""
+        display_html(iframe, raw=True)
+
+    def get_previous_context(self, idx):
+        eos_ids = [1,2,13]
+        previous_idx = idx
+        previous_token_ids = []
+        sentence_complete_flag = False
+
+        while previous_idx > 0:
+            previous_idx -= 1
+            previous_ids = self.train_dataset[previous_idx]["input_ids"]
+            i = len(previous_ids) - 1
+            while i >= 0:
+                if previous_ids[i] in eos_ids: 
+                    sentence_complete_flag = True
+                    break
+                previous_token_ids = [previous_ids[i]] + previous_token_ids
+                i -= 1
+            if sentence_complete_flag: break
+        
+        return previous_token_ids
+
+    def get_next_context(self, idx):
+        eos_ids = [1,2,13]
+        next_idx = idx + 1
+        next_token_ids = []
+        sentence_complete_flag = False
+        if self.train_dataset[idx]["input_ids"][-1] in eos_ids: sentence_complete_flag = True
+
+        while next_idx < len(self.train_dataset) and not sentence_complete_flag:
+            next_ids = self.train_dataset[next_idx]["input_ids"]
+            i = 0
+            while i < len(next_ids):
+                if next_ids[i] in eos_ids: 
+                    sentence_complete_flag = True
+                    break
+                next_token_ids.append(next_ids[i])
+                i += 1
+            if sentence_complete_flag: break
+            next_idx += 1
+        
+        return next_token_ids
     
     def compute_token_importance(self, data=None, ckpt_name=None, ckpt_names=None):
         print("Computing token importance...")

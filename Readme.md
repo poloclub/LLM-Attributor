@@ -1,0 +1,1 @@
+Icon from svgrepo.com
