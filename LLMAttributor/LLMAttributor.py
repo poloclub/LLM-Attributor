@@ -2,8 +2,10 @@ import os
 from tqdm import tqdm 
 import time 
 import json 
+import csv
 import gc
 import random
+import string
 
 import pkgutil 
 import html 
@@ -86,6 +88,15 @@ class LLMAttributor:
         # location of this project
         self.project_dir = os.path.dirname(__file__)
 
+        # for attribution 
+        self.attribution_score_dir = os.path.join(self.model_save_dir, "attribution_score")
+        self.text_hash_filepath = os.path.join(self.attribution_score_dir, "text_hash.csv")
+        self.text_hash_dict = dict()
+        if not os.path.exists(self.attribution_score_dir): os.makedirs(self.attribution_score_dir)
+        elif os.path.exists(self.text_hash_filepath):
+            with open(self.text_hash_filepath, "r") as f:
+                csv_reader = csv.reader(f)
+                self.text_hash_dict = {k:v for (k,v) in csv_reader}
 
     def set_dataset(self, train_dataset, val_dataset=None, test_dataset=None, split_data_into_multiple_batches=False):
         self.train_dataset = self._tokenize_dataset(train_dataset, block_size=self.block_size, split_data_into_multiple_batches=split_data_into_multiple_batches)
@@ -257,6 +268,9 @@ class LLMAttributor:
         output = self.model.generate(**model_input, max_new_tokens=max_new_tokens, pad_token_id=self.tokenizer.pad_token_id)[0]
         if return_decoded: return self.tokenizer.decode(output, skip_special_tokens=True)
         else: return output
+
+    def get_text_to_hash(self, prompt, text):
+        return f"[ATTR PROMPT] {prompt} [ATTR TEXT] {text}"
     
     def set_attr_text(self, prompt=None, prompt_ids=None, generated_text=None, generated_ids=None, entire_text=None, entire_text_ids=None, attr_tokens_pos=None, attr_attention_mask=None): 
         # prompt: input prompt without generated text (groundtruth answer)
@@ -265,19 +279,22 @@ class LLMAttributor:
 
         self.prompt = prompt 
         self.generated_text = generated_text 
+        self.text_to_hash = self.get_text_to_hash(self.prompt, self.generated_text)
+        if self.text_to_hash in self.text_hash_dict: self.attr_hash = self.text_hash_dict[self.text_to_hash]
+        else: 
+            random_string = ''.join(random.choice(string.ascii_letters) for i in range(10))
+            while random_string in self.text_hash_dict.values(): random_string = ''.join(random.choice(string.ascii_letters) for i in range(10))
+            self.attr_hash = random_string
+            self.text_hash_dict[self.text_to_hash] = self.attr_hash
+            with open(self.text_hash_filepath, "a") as f:
+                csv_writer = csv.writer(f)
+                csv_writer.writerow([self.text_to_hash, self.attr_hash])
         
         if prompt_ids is None: prompt_ids = self._text_to_ids(prompt)
         if generated_ids is None: generated_ids = self._text_to_ids(generated_text)
         self.prompt_ids = torch.LongTensor(prompt_ids).to(self.device).reshape(1,-1)
         self.generated_ids = torch.LongTensor(generated_ids).to(self.device).reshape(1,-1)
         self.prompt_token_num = self.prompt_ids.shape[1]
-
-        # if entire_text is None and entire_text_ids is None and generated_text is None and generated_ids is None:
-        #     # generate attr_text from prompt
-        #     entire_text_ids = self.generate(prompt=prompt, max_new_tokens=self.max_new_tokens, return_decoded=False)
-        #     entire_text = self.tokenizer.decode(entire_text_ids[0], skip_special_tokens=True)
-        # elif entire_text is None and entire_text_ids is None and (generated_text is not None or generated_ids is not None):
-        #     pass
 
         if entire_text is None: entire_text = self.prompt + self.generated_text
         if entire_text_ids is None: entire_text_ids = self._text_to_ids(entire_text)
@@ -428,12 +445,9 @@ class LLMAttributor:
         for ckpt in ckpt_names:
             if verbose: print("Saving gradients for", ckpt)
 
-            ckpt_dir = os.path.join(self.model_save_dir, ckpt)
-
             # create grad_dir if it doesn't exists
-            grad_dir = f"{ckpt_dir}/training_grads_post"
-            if not os.path.exists(grad_dir):
-                os.makedirs(grad_dir)
+            grad_dir = os.path.join(self.attribution_score_dir, ckpt, "training_gradients")
+            if not os.path.exists(grad_dir): os.makedirs(grad_dir)
             
             # check if the gradients are already computed
             grad_files = [filename for filename in os.listdir(grad_dir) if filename.endswith(".pt") or filename.endswith(".pth")]
@@ -441,6 +455,7 @@ class LLMAttributor:
             if grad_computed: continue
 
             # compute gradient and save
+            ckpt_dir = os.path.join(self.model_save_dir, ckpt)
             self.set_model(pretrained=True, pretrained_dir=ckpt_dir)
             self.model.eval()
             
@@ -456,26 +471,27 @@ class LLMAttributor:
             
             self.clear_model()
 
-    def get_datainf_scores(self, ckpt_name=None, ckpt_names=None, integrated=True, integration="mean", weighted=False, weight=None, verbose=False, override=True):
+    def get_datainf_scores(self, ckpt_name=None, ckpt_names=None, integrated=True, integration="mean", weighted=False, weight=None, verbose=False):
         if ckpt_names is not None: ckpt_names = ckpt_names
         elif ckpt_name is not None: ckpt_names = [ckpt_name] 
         else: ckpt_names = self.ckpt_names
 
-        all_scores = dict()
+        if os.path.exists(os.path.join(self.attribution_score_dir, f"score_{self.attr_hash}.json")) and integrated:
+            with open(os.path.join(self.attribution_score_dir, f"score_{self.attr_hash}.json"), "r") as f: integrated_scores = json.load(f)
+            self.scores = np.array(integrated_scores)
+            return self.scores
 
+        all_scores = dict()
         for ckpt_name in ckpt_names:
             if verbose: print("Computing datainf scores for", ckpt_name)
             
-            score_dir = os.path.join(self.model_save_dir, ckpt_name, "datainf.json")
-            
-            if override or not os.path.exists(score_dir): self.save_datainf_scores(ckpt_name=ckpt_name, override=override)
+            score_dir = os.path.join(self.attribution_score_dir, ckpt_name, f"score_{self.attr_hash}.json")
+            if not os.path.exists(score_dir): self.save_datainf_scores(ckpt_name=ckpt_name)
             with open(score_dir, "r") as f: scores = json.load(f)
             
             scores = np.array(scores)
             all_scores[ckpt_name] = scores
-            # all_scores.append(scores)
             
-        # all_scores = np.array(all_scores)
         if integrated and weighted: 
             assert weight is not None
             integrated_scores = None 
@@ -489,16 +505,17 @@ class LLMAttributor:
         else: self.scores = all_scores
         return self.scores
 
-    def save_datainf_scores(self, ckpt_name=None, ckpt_names=None, override=True):
+    def save_datainf_scores(self, ckpt_name=None, ckpt_names=None):
         if ckpt_names is not None: ckpt_names = ckpt_names
         elif ckpt_name is not None: ckpt_names = [ckpt_name] 
         else: ckpt_names = self.ckpt_names
 
         for ckpt_name in ckpt_names:
             ckpt_dir =  os.path.join(self.model_save_dir, ckpt_name)
-            score_dir = os.path.join(ckpt_dir, "datainf.json")
-            if not override and os.path.exists(score_dir): 
-                continue
+            score_dir = os.path.join(self.attribution_score_dir, ckpt_name, f"score_{self.attr_hash}.json")
+            if not os.path.exists(os.path.join(self.attribution_score_dir, ckpt_name)):
+                os.makedirs(os.path.join(self.attribution_score_dir, ckpt_name))
+            if os.path.exists(score_dir): continue
 
             # compute datainf score
             self.set_model(pretrained=True, pretrained_dir=ckpt_dir)
@@ -506,7 +523,7 @@ class LLMAttributor:
             self.save_ckpt_gradients(ckpt_name=ckpt_name)
             self.set_attr_grad()
 
-            grad_dir = os.path.join(ckpt_dir, "training_grads_post")
+            grad_dir = os.path.join(ckpt_dir, "training_gradients")
             n_layers = len(self.attr_grad)
             n_train = len(self.train_dataset)
             tr_grad_norm = np.zeros([n_layers, n_train])
@@ -536,8 +553,8 @@ class LLMAttributor:
             # save the scores to score_dir 
             with open(score_dir, "w") as f: json.dump(scores.tolist(), f)
 
-    def get_topk_training_data(self, k=3, return_scores=False, override=True, integration="mean"):
-        if self.scores is None: scores = self.get_datainf_scores(integrated=True, integration=integration, override=override)
+    def get_topk_training_data(self, k=3, return_scores=False, integration="mean"):
+        if self.scores is None: scores = self.get_datainf_scores(integrated=True, integration=integration)
         else: scores = self.scores 
 
         topk_training_idx = np.argsort(-scores)[:k]
@@ -593,7 +610,7 @@ class LLMAttributor:
         prompt_added_html_code = styled_html_code.replace("<!--prompt-slot-->", prompt_html_code)
         generated_added_html_code = prompt_added_html_code.replace("<!--generated-text-slot-->", generated_text_html_code)
 
-        indices, data, scores = self.get_topk_training_data(k=len(self.train_dataset), override=False, return_scores=True, integration="median")  # TODO: update override
+        indices, data, scores = self.get_topk_training_data(k=len(self.train_dataset), return_scores=True, integration="median")
         scores = [float("{:.2e}".format(score)) for score in scores]
         
         # split train_idx, train_data, topk_scores into positive and negative

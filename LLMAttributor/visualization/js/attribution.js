@@ -192,26 +192,21 @@ function displayAttribution (attribution, positive=true) {
             .append("div")
                 .attr("class", `attributed-text-wrapper ${type}-attributed-text-wrapper`)
                 .attr("id", `${type}-attributed-text-wrapper-${i}`)
-                .append("div")
-                    .attr("class", `attributed-text ${type}-attributed-text`)
-                    .attr("id", `${type}-attributed-text-${i}`)
-
+        
         let attributedTextWrapperElement = document.getElementById(`${type}-attributed-text-wrapper-${i}`)
         attributedTextWrapperElement.attributionData = attribution[i]
         attributedTextWrapperElement.positive = positive
-        
-        let attributedTextElement = document.getElementById(`${type}-attributed-text-${i}`)
-        setCollapsedText(attribution[i]["text"], attributedTextElement)
 
         d3.select(`#${type}-attributed-text-wrapper-${i}`)
             .append("div")
                 .attr("id", `${type}-attributed-text-info-wrapper-${i}`)
                 .attr("class", `attributed-text-info-wrapper ${type}-attributed-text-info-wrapper`)
-        d3.select(`#${type}-attributed-text-info-wrapper-${i}`)
-            .append("span")
-                .attr("id", `${type}-attributed-text-info-0-${i}`)
-                .attr("class", `attributed-text-info ${type}-attributed-text-info`)
-                .html(`<i class="fa-regular fa-star"></i>Score: ${attribution[i]["score"].toExponential()}`)
+        d3.select(`#${type}-attributed-text-wrapper-${i}`)
+            .append("div")
+                .attr("class", `attributed-text ${type}-attributed-text`)
+                .attr("id", `${type}-attributed-text-${i}`)
+        let attributedTextElement = document.getElementById(`${type}-attributed-text-${i}`)
+        setCollapsedText(attribution, attributedTextElement)
                 
 
         // Click Event Listener
@@ -290,8 +285,24 @@ function collapseExpandedAttributedText (attributedTextWrapperElementId, attribu
             .style("height", "48px")
 }
 
-function setCollapsedText (text, element) {
+function setCollapsedText (attribution, element) {
     element.innerText = ""
+    let elementId = element.id;
+    let elementIdSplit = elementId.split("-")
+    let type = elementIdSplit[0]
+    let i = elementIdSplit[elementIdSplit.length-1]
+    let text = attribution[i]["text"] 
+
+    d3.select(`#${type}-attributed-text-info-wrapper-${i}`)
+        .append("span")
+            .attr("class", `attributed-text-info ${type}-attributed-text-info`)
+            .html(`Training Data #${attribution[i]["data_index"]}`)
+    d3.select(`#${type}-attributed-text-info-wrapper-${i}`)
+        .append("span")
+            .attr("class", `attributed-text-info ${type}-attributed-text-info`)
+            .html(`<i class="fa-regular fa-star"></i>Score: ${attribution[i]["score"].toExponential()}`)
+            // .html(`Score: ${attribution[i]["score"].toExponential()}`)
+    
     let word_list = text.split(" ")
     for (word_idx in word_list) {
         let word = word_list[word_idx]
