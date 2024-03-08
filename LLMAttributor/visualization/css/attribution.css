@@ -1,6 +1,6 @@
 :root {
     --attended-token-color: #404040;
-    --unattended-token-color: #b0b0b0;
+    --unattended-token-color: #a0a0a0;
     --positive0: #e0f3f8;
     --positive1: #abd9e9;
     --positive2: #74add1;
@@ -11,6 +11,15 @@
     --negative2: #f46d43;
     --negative3: #d73027;
     --negative4: #a50026;
+    --blue0: #f7fbff;
+    --blue1: #deebf7;
+    --blue2: #c6dbef;
+    --blue3: #9ecae1;
+    --blue4: #6baed6;
+    --blue5: #4292c6;
+    --blue6: #2171b5;
+    --blue7: #08519c;
+    --blue8: #08306b;
 }
 
 body {
@@ -260,18 +269,20 @@ body {
 
 /* full text tokens */
 .attributed-text-expanded-title {
-    font-size: 15px;
+    font-size: 17px;
     padding: 7px 5px 3px 5px;
-    font-weight: bold
+    font-weight: bold;
+    color: #606060;
 }
 
 .attributed-text-expanded-contents {
     padding: 0px 5px 0px 5px;
 }
 
-.tokens-container {
+.full-text-wrapper {
     pointer-events: none;
     padding: 0 5px;
+    font-size: 15px;
 }
 
 .token-wrapper {
@@ -326,6 +337,33 @@ body {
 nobr:has(.first-in-line-token.left-space-token)::before {
     content: " ";
     display: block;
+}
+
+.full-text-wrapper {
+    margin-bottom: 15px;
+}
+
+/* other metadata */
+.expanded-contents {
+    margin-top: 2px;
+    padding-left: 5px;
+    color: #606060;
+    font-size: 15px;
+}
+
+.expanded-contents .expanded-contents-title {
+    padding-right: 5px;
+    font-weight: bold;
+}
+
+.expanded-contents a.expanded-contents-value {
+    color: #606060;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.expanded-contents a.expanded-contents-value:hover {
+    color: #202020;
 }
 
 /* sidebar */

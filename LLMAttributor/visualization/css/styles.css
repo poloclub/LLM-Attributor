@@ -34,6 +34,8 @@ body {
     -ms-user-select: none;
 }
 
+
+
 .attended-token {
     color: var(--attended-token-color);
 }

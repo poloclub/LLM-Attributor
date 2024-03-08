@@ -6,6 +6,7 @@ import csv
 import gc
 import random
 import string
+import difflib
 
 import pkgutil 
 import html 
@@ -67,7 +68,7 @@ class LLMAttributor:
 
         # set device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
-        if self.device != "auto": torch.cuda.set_device(self.device)
+        if self.device not in ["auto","cuda"]: torch.cuda.set_device(self.device)
 
         # set PEFT related configs
         self.load_in_8bit = True 
@@ -99,44 +100,33 @@ class LLMAttributor:
                 self.text_hash_dict = {k:v for (k,v) in csv_reader}
 
     def set_dataset(self, train_dataset, val_dataset=None, test_dataset=None, split_data_into_multiple_batches=False):
-        self.train_dataset = self._tokenize_dataset(train_dataset, block_size=self.block_size, split_data_into_multiple_batches=split_data_into_multiple_batches)
-        self.val_dataset = self._tokenize_dataset(val_dataset, block_size=self.block_size, split_data_into_multiple_batches=split_data_into_multiple_batches)
-        self.test_dataset = self._tokenize_dataset(test_dataset, block_size=self.block_size, split_data_into_multiple_batches=split_data_into_multiple_batches)
+        self.train_dataset = self._tokenize_dataset(train_dataset)
+        self.val_dataset = self._tokenize_dataset(val_dataset)
+        self.test_dataset = self._tokenize_dataset(test_dataset)
 
-    def _tokenize_dataset(self, dataset, corpus_key='text', block_size=None, split_data_into_multiple_batches=False):
-        # TBU: check whether to truncate with block_size or split into multiple examples
+    def _tokenize_dataset(self, dataset):
         if dataset is None: return None 
-        if type(dataset) in [dict, datasets.arrow_dataset.Dataset] and 'input_ids' in dataset: return dataset 
-
-        if type(dataset) == list: 
-            corpus_key = "text"
-            dataset = {corpus_key: dataset}
-
-        if type(dataset) == dict and corpus_key not in dataset: ### dataset structure: {"title": "text"}
-            dataset = {"text": list(dataset.values()), "title": list(dataset.keys())}
         
-        if type(dataset) == dict: dataset = datasets.Dataset.from_dict(dataset)
+        if type(dataset) == datasets.arrow_dataset.Dataset: pass 
+        elif type(dataset) == dict: dataset = datasets.Dataset.from_dict(dataset)
+        elif type(dataset) == list: dataset = datasets.Dataset.from_list(dataset)
+        
+        if 'input_ids' in dataset.features: return dataset 
+        if "text" not in dataset.features: raise ValueError("Please change the key for the corpus to 'text'")
 
-        if split_data_into_multiple_batches: 
-            dataset = dataset.map(lambda data: self.tokenizer(data[corpus_key], max_length=None), remove_columns=[corpus_key])
-            dataset = dataset.map(lambda data: self._split_tokens(data=data))
+        dataset = dataset.map(lambda data: self.tokenizer(data["text"], max_length=None), remove_columns=["text"])
+        dataset = dataset.map(lambda data: self._split_tokens(data=data))
 
-            final_dataset = {"input_ids": [], "attention_mask": []}
-            if "title" in dataset.column_names: final_dataset["title"] = []
-            
-            for data in dataset:
-                num_batches = len(data["input_ids"])
-                for i in range(num_batches):
-                    final_dataset["input_ids"].append(data["input_ids"][i])
-                    final_dataset["attention_mask"].append(data["attention_mask"][i])
-                    if "title" in final_dataset: final_dataset["title"].append(data["title"])
+        final_dataset = {key: [] for key in dataset.column_names}
+        
+        for data in dataset:
+            num_batches = len(data["input_ids"])
+            for i in range(num_batches):
+                for key in final_dataset: final_dataset[key].append(data[key][i])
+        final_dataset["text"] = [self._ids_to_text(input_ids) for input_ids in final_dataset["input_ids"]]
+        final_dataset["labels"] = final_dataset["input_ids"]
 
-            dataset = datasets.Dataset.from_dict(final_dataset)
-
-        else:
-            dataset = dataset.map(lambda dataset: self.tokenizer(dataset[corpus_key], truncation=True, padding='max_length', max_length=block_size))
-
-        dataset = dataset.add_column("labels", dataset["input_ids"])
+        dataset = datasets.Dataset.from_dict(final_dataset)
 
         return dataset 
     
@@ -145,20 +135,26 @@ class LLMAttributor:
         
         if tokens is None: tokens = data["input_ids"]
         attention_mask = data["attention_mask"] if data is not None and "attention_mask" in data else np.ones_like(tokens)
-        title = data["title"] if data is not None and "title" in data else None
+
+        # title = data["title"] if data is not None and "title" in data else None
         
         if block_size is None: block_size = self.block_size
         if tokens[0] != self.tokenizer.bos_token_id: tokens = [self.tokenizer.bos_token_id] + tokens 
         if tokens[-1] != self.tokenizer.eos_token_id: tokens = tokens + [self.tokenizer.eos_token_id]
 
-        total_length = len(tokens)
-        if total_length >= block_size: total_length = (total_length // block_size) * block_size
+        total_length = ((len(tokens) + block_size - 1) // block_size) * block_size
+        if total_length > len(tokens): 
+            tokens = tokens + [self.tokenizer.pad_token_id] * (total_length - len(tokens))
+            attention_mask = np.concatenate([attention_mask, np.zeros(total_length - len(attention_mask))])
         
         result = {
             "input_ids": [tokens[i:i+block_size] for i in range(0, total_length, block_size)],
             "attention_mask": [attention_mask[i:i+block_size] for i in range(0, total_length, block_size)],
         }
-        if title is not None: result["title"] = title
+
+        # other meta data (e.g., source url, title)
+        for key in data:
+            if key not in ["input_ids", "attention_mask"]: result[key] = [data[key]] * len(result["input_ids"])
 
         return result
 
@@ -264,10 +260,15 @@ class LLMAttributor:
 
     def generate(self, prompt=None, max_new_tokens=1000, return_decoded=True):
         # if not hasattr(self, "model") or self.model is None: self.set_model(pretrained=True, pretrained_dir=os.path.join(self.model_save_dir, "checkpoint-250"))  # TBU
+        self.auto_to_cuda()
         model_input = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        if self.model==None: self.set_model(pretrained=True, pretrained_dir=self.model_save_dir)
         output = self.model.generate(**model_input, max_new_tokens=max_new_tokens, pad_token_id=self.tokenizer.pad_token_id)[0]
-        if return_decoded: return self.tokenizer.decode(output, skip_special_tokens=True)
-        else: return output
+        prompt_len = model_input["input_ids"].shape[1]
+        output = output[prompt_len:]
+        if return_decoded: output = self._ids_to_text(output)
+        self.cuda_to_auto()
+        return output
 
     def get_text_to_hash(self, prompt, text):
         return f"[ATTR PROMPT] {prompt} [ATTR TEXT] {text}"
@@ -304,13 +305,12 @@ class LLMAttributor:
         self.attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(self.device) if attr_tokens_pos is not None else None
         if self.attr_tokens_pos is None: 
             self.attr_tokens_pos = torch.arange(self.prompt_token_num, self.entire_text_token_num).to(self.device)
-            # code = self.select_attr_tokens_pos()
-            code = None
         else: code = None
         self.attr_attention_mask = torch.Tensor(attr_attention_mask).to(self.device) if attr_attention_mask is not None else torch.ones_like(self.entire_text_ids).to(self.device)
         self.scores = None 
+        self.select_attr_tokens_pos()
         
-        return code
+        # return code
 
     def _text_to_ids(self, text):
         return torch.LongTensor(self.tokenizer(text, return_tensors="pt")["input_ids"])[:,1:]
@@ -331,6 +331,7 @@ class LLMAttributor:
         nobr_closed = True
 
         if attention_mask is None: attention_mask = np.ones(len(token_ids))
+        previous_space_flag = False
 
         for i, token_id in enumerate(token_ids):
             token_decoded = self.tokenizer.convert_ids_to_tokens([token_id])[0]
@@ -349,14 +350,21 @@ class LLMAttributor:
                 class_name += " space-token"
                 token_decoded = "&nbsp;"
                 html_code = f"<div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
+                previous_space_flag = True
                 if not nobr_closed: html_code = html_code + "</nobr>"
             elif "▁" == token_decoded[0]: 
+                if not nobr_closed: html_code = html_code + "</nobr>"
                 if i>0: class_name += " left-space-token"
                 token_decoded = token_decoded[1:]
                 html_code = f"<nobr><div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
                 nobr_closed = False 
+                previous_space_flag = False
             else:
-                html_code = f"<div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
+                if previous_space_flag:
+                    html_code = f"<nobr><div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
+                    nobr_closed = False
+                else: html_code = f"<div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
+                previous_space_flag = False
             
             text_html_code += html_code
         
@@ -469,8 +477,6 @@ class LLMAttributor:
                 grad_loss = torch.autograd.grad(loss, [param for param in self.model.parameters() if param.requires_grad])
                 torch.save(grad_loss, f"{grad_dir}/{i}.pt")
             
-            self.clear_model()
-
     def get_datainf_scores(self, ckpt_name=None, ckpt_names=None, integrated=True, integration="mean", weighted=False, weight=None, verbose=False):
         if ckpt_names is not None: ckpt_names = ckpt_names
         elif ckpt_name is not None: ckpt_names = [ckpt_name] 
@@ -504,26 +510,65 @@ class LLMAttributor:
             self.scores = integrated_scores
         else: self.scores = all_scores
         return self.scores
+        
+    def get_inner_scores(self, ckpt_name=None, ckpt_names=None, integrated=True, integration="mean", weighted=False, weight=None, verbose=False):
+        if ckpt_names is not None: ckpt_names = ckpt_names
+        elif ckpt_name is not None: ckpt_names = [ckpt_name] 
+        else: ckpt_names = self.ckpt_names
+
+        if os.path.exists(os.path.join(self.attribution_score_dir, f"inner_{self.attr_hash}.json")) and integrated:
+            with open(os.path.join(self.attribution_score_dir, f"inner_{self.attr_hash}.json"), "r") as f: integrated_scores = json.load(f)
+            self.scores = np.array(integrated_scores)
+            return self.scores
+
+        all_scores = dict()
+        for ckpt_name in ckpt_names:
+            if verbose: print("Computing inner products for", ckpt_name)
+            
+            score_dir = os.path.join(self.attribution_score_dir, ckpt_name, f"inner_{self.attr_hash}.json")
+            if not os.path.exists(score_dir): self.save_inner_scores(ckpt_name=ckpt_name)
+            with open(score_dir, "r") as f: scores = json.load(f)
+            
+            scores = np.array(scores)
+            all_scores[ckpt_name] = scores
+            
+        if integrated and weighted: 
+            assert weight is not None
+            integrated_scores = None 
+            raise NotImplementedError
+        elif integrated and integration=="mean": 
+            integrated_scores = np.mean(list(all_scores.values()), axis=0)
+            self.scores = integrated_scores
+        elif integrated and integration=="median": 
+            integrated_scores = np.median(list(all_scores.values()), axis=0)
+            self.scores = integrated_scores
+        else: self.scores = all_scores
+        return self.scores
 
     def save_datainf_scores(self, ckpt_name=None, ckpt_names=None):
         if ckpt_names is not None: ckpt_names = ckpt_names
         elif ckpt_name is not None: ckpt_names = [ckpt_name] 
         else: ckpt_names = self.ckpt_names
 
+        original_device = self.device
         for ckpt_name in ckpt_names:
             ckpt_dir =  os.path.join(self.model_save_dir, ckpt_name)
-            score_dir = os.path.join(self.attribution_score_dir, ckpt_name, f"score_{self.attr_hash}.json")
-            if not os.path.exists(os.path.join(self.attribution_score_dir, ckpt_name)):
-                os.makedirs(os.path.join(self.attribution_score_dir, ckpt_name))
-            if os.path.exists(score_dir): continue
+            score_dir = os.path.join(self.attribution_score_dir, ckpt_name)
+            score_file = os.path.join(score_dir, f"score_{self.attr_hash}.json")
+            if not score_dir: os.makedirs(score_dir)
+            if os.path.exists(score_file): continue
 
             # compute datainf score
+            if self.device in ["auto", "cuda"]:
+                self.device = "cuda:0"
+                torch.cuda.set_device(self.device)
+            print(ckpt_dir)
             self.set_model(pretrained=True, pretrained_dir=ckpt_dir)
             self.model.eval()
             self.save_ckpt_gradients(ckpt_name=ckpt_name)
             self.set_attr_grad()
 
-            grad_dir = os.path.join(ckpt_dir, "training_gradients")
+            grad_dir = os.path.join(score_dir, "training_gradients")
             n_layers = len(self.attr_grad)
             n_train = len(self.train_dataset)
             tr_grad_norm = np.zeros([n_layers, n_train])
@@ -551,10 +596,56 @@ class LLMAttributor:
                     scores[train_k] -= (rs[l] * grad[l]).sum()
 
             # save the scores to score_dir 
-            with open(score_dir, "w") as f: json.dump(scores.tolist(), f)
+            with open(score_file, "w") as f: json.dump(scores.tolist(), f)
 
-    def get_topk_training_data(self, k=3, return_scores=False, integration="mean"):
-        if self.scores is None: scores = self.get_datainf_scores(integrated=True, integration=integration)
+        if original_device != self.device:
+            self.device = original_device
+            if self.device not in ["auto", "cuda"]: torch.cuda.set_device(self.device)
+
+    def save_inner_scores(self, ckpt_name=None, ckpt_names=None):
+        if ckpt_names is not None: ckpt_names = ckpt_names
+        elif ckpt_name is not None: ckpt_names = [ckpt_name] 
+        else: ckpt_names = self.ckpt_names
+
+        original_device = self.device
+        for ckpt_name in ckpt_names:
+            ckpt_dir =  os.path.join(self.model_save_dir, ckpt_name)
+            score_dir = os.path.join(self.attribution_score_dir, ckpt_name)
+            score_file = os.path.join(score_dir, f"inner_{self.attr_hash}.json")
+            if not score_dir: os.makedirs(score_dir)
+            if os.path.exists(score_file): continue
+
+            # compute datainf score
+            if self.device in ["auto", "cuda"]:
+                self.device = "cuda:0"
+                torch.cuda.set_device(self.device)
+            self.set_model(pretrained=True, pretrained_dir=ckpt_dir)
+            self.model.eval()
+            self.save_ckpt_gradients(ckpt_name=ckpt_name)
+            self.set_attr_grad()
+
+            grad_dir = os.path.join(score_dir, "training_gradients")
+            n_layers = len(self.attr_grad)
+            n_train = len(self.train_dataset)
+            inners = np.zeros([n_train])
+            attr_grad_norm = torch.sum(torch.Tensor([(self.attr_grad[l]*self.attr_grad[l]).sum() for l in range(n_layers)])) ** 0.5
+            for i in range(n_train):
+                grad_i = torch.load(f"{grad_dir}/{i}.pt")
+                grad_i_norm = torch.sum(torch.Tensor([(grad_i[l]*grad_i[l]).sum() for l in range(n_layers)])) ** 0.5
+                inner = torch.sum(torch.Tensor([torch.sum(self.attr_grad[l] * grad_i[l]) for l in range(n_layers)]))
+                inner /= (attr_grad_norm * grad_i_norm)
+                inners[i] = inner.item()
+
+            # save the scores to score_dir 
+            with open(score_file, "w") as f: json.dump(inners.tolist(), f)
+
+        if original_device != self.device:
+            self.device = original_device
+            if self.device not in ["auto", "cuda"]: torch.cuda.set_device(self.device)
+
+    def get_topk_training_data(self, k=3, return_scores=False, integration="mean", score_method="datainf"):
+        if self.scores is None and score_method=="datainf": scores = self.get_datainf_scores(integrated=True, integration=integration)
+        if self.scores is None and score_method=="inner": scores = self.get_inner_scores(integrated=True, integration=integration)
         else: scores = self.scores 
 
         topk_training_idx = np.argsort(-scores)[:k]
@@ -568,10 +659,11 @@ class LLMAttributor:
         # get TF from the topk training data
         tf_dict = dict()
         for data_i, text in enumerate(topk_data_text):
-            for word in text.split(" "):
-                word = word.strip(".,?!:;`'\"()[]\{\}<>-_=+*^&%$#@~|\\/\n\t\r\v\f").lower()
-                if word in tf_dict: tf_dict[word][data_i:] += 1
-                else: tf_dict[word] = np.array([0] * data_i + [1] * (k - data_i))
+            for paragraph in text.split("\n"):
+                for word in paragraph.split(" "):
+                    word = word.strip(".,?!:;`'\"()[]\{\}<>-_=+*^&%$#@~|\\/\n\t\r\v\f").lower()
+                    if word in tf_dict: tf_dict[word][data_i:] += 1
+                    else: tf_dict[word] = np.array([0] * data_i + [1] * (k - data_i))
 
         # get IDF based on the entire training data
         idf_dict = {word: 0 for word in tf_dict.keys()}
@@ -589,7 +681,7 @@ class LLMAttributor:
         return tfidf_dict
         
 
-    def visualize_attributed_training_data(self, pos_max_num=10, neg_max_num=10):
+    def visualize_attributed_training_data(self, pos_max_num=10, neg_max_num=10, integration="median", score_method="datainf"):
         vis_dir = os.path.join(self.project_dir, "visualization")
 
         base_html_code = open(os.path.join(vis_dir, "html/attribution.html"), "r").read()
@@ -610,8 +702,10 @@ class LLMAttributor:
         prompt_added_html_code = styled_html_code.replace("<!--prompt-slot-->", prompt_html_code)
         generated_added_html_code = prompt_added_html_code.replace("<!--generated-text-slot-->", generated_text_html_code)
 
-        indices, data, scores = self.get_topk_training_data(k=len(self.train_dataset), return_scores=True, integration="median")
-        scores = [float("{:.2e}".format(score)) for score in scores]
+        indices, data, scores = self.get_topk_training_data(k=len(self.train_dataset), return_scores=True, integration=integration, score_method=score_method)
+        max_score_val = np.abs(scores).max()
+        normalized_scores = scores / max_score_val
+        scores = [float("{:.4f}".format(score)) for score in normalized_scores]
         
         # split train_idx, train_data, topk_scores into positive and negative
         positive_attribution, negative_attribution = [], []
@@ -623,16 +717,26 @@ class LLMAttributor:
             next_token_ids = self.get_next_context(int(idx))
             attention_mask = [0] * len(previous_token_ids) + [1] * len(d["input_ids"]) + [0] * len(next_token_ids)
             token_ids = previous_token_ids + d["input_ids"] + next_token_ids
+            bos_token_num, pad_token_num = 0, 0
+            for token_id in token_ids:
+                if token_id == self.tokenizer.bos_token_id: bos_token_num += 1
+                else: break 
+            for token_id in token_ids[::-1]:
+                if token_id == self.tokenizer.pad_token_id: pad_token_num += 1
+                else: break
+            token_ids = token_ids[bos_token_num:]
+            if pad_token_num > 0: token_ids = token_ids[:-pad_token_num]
             text_html_code, tokens_container_id = self.get_tokens_html_code(token_ids, attention_mask)
             
             data_dict = {
                 "text": self._ids_to_text(d["input_ids"]),
                 "text_html_code": text_html_code,
                 "tokens_container_id": tokens_container_id,
-                "title": d["title"],
                 "score": score,
                 "data_index": idx,
             }
+            for key in d:
+                if key not in ["input_ids", "attention_mask", "text", "labels"]: data_dict[key] = d[key]
             
             if score > 0 and len(positive_attribution) < pos_max_num: positive_attribution.append(data_dict)
             
@@ -654,10 +758,11 @@ class LLMAttributor:
                 "text": self._ids_to_text(d["input_ids"]),
                 "text_html_code": text_html_code,
                 "tokens_container_id": tokens_container_id,
-                "title": d["title"],
                 "score": score,
                 "data_index": idx,
             }
+            for key in d:
+                if key not in ["input_ids", "attention_mask", "text", "labels"]: data_dict[key] = d[key]
             
             if score < 0 and len(negative_attribution) < neg_max_num: negative_attribution.append(data_dict)
 
@@ -684,7 +789,6 @@ class LLMAttributor:
         topN_word_indices_for_each_topk_neg = np.argsort(-np.array(list(neg_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(neg_tf_idf.keys())
         topN_words_for_each_topk_neg = [[[word_indices[i], neg_tf_idf[word_indices[i]][j]] for i in topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
-
 
         # send all the positively/negatively attributed data and their scores through message
         message_js = f"""
@@ -720,6 +824,35 @@ class LLMAttributor:
             height="2000px">
         </iframe>"""
         display_html(iframe, raw=True)
+
+    def compare(self, user_provided_text, pos_max_num=10, neg_max_num=10, integration="median", score_method="datainf"):
+        # user_provided can be given as either of text or html code
+        if user_provided_text.startswith("<div>"):
+            ids_list, new_flag_list = [], []
+            new_flag = False
+            user_provided_text = user_provided_text.replace("<div>", "").replace("</div>", "")
+            if user_provided_text.startswith('<span class="result-new">'): new_flag=True 
+
+            for chunk in user_provided_text.split('<span class="result-new">'):
+                if chunk[-1] == " ": chunk = chunk[:-1]
+
+                chunk_split = chunk.split("</span>")
+                assert(len(chunk_split)<=2)
+                chunk_ids = self._text_to_ids(chunk_split[0])
+                ids_list.append(chunk_ids)
+                new_flag_list.append(new_flag)
+                new_flag = not new_flag
+
+                if len(chunk_split)==2:
+                    chunk_ids = self._text_to_ids(chunk_split[1])
+                    ids_list.append(chunk_ids)
+                    new_flag_list.append(new_flag)
+                    new_flag = not new_flag
+        else: 
+            # 1. tokenize
+            sm = difflib.SequenceMatcher(None, self.generated_text, user_provided_text)
+            # TODO: Compare with self.generated_text
+            pass
 
     def get_previous_context(self, idx):
         eos_ids = [1,2,13]
@@ -761,6 +894,35 @@ class LLMAttributor:
             next_idx += 1
         
         return next_token_ids
+
+    def edit_text(self):
+        html_code_filename = os.path.join(self.project_dir, "visualization/html/text_edit.html")
+        css_code_filename = os.path.join(self.project_dir, "visualization/css/text_edit.css")
+        html_code = open(html_code_filename, "r").read()
+        css_code = "<style>" + open(css_code_filename, "r").read() + "</style>"
+        text_html_code, random_id = self.get_tokens_html_code(token_ids=self.generated_ids[0], attention_mask=np.ones(len(self.generated_ids[0])))
+        text_html_code = text_html_code[:-6]  # remove the last </div> tag
+        text_html_code += '<div class="token space-token dummy-token">&nbsp;</div></div>'
+        html_code = html_code.replace("<!--text-slot-->", text_html_code)
+        html_code = html_code.replace("<!--style-slot-->", css_code)
+
+        js_code_filename = os.path.join(self.project_dir, "visualization/js/text_edit.js")
+        js_string = open(js_code_filename, "r").read()
+        js_b = bytes(js_string, encoding="utf-8")
+        js_base64 = base64.b64encode(js_b).decode("utf-8")
+        html_code = html_code.replace("<!--js-slot-->", f"""<script data-notebookMode="true" data-package="{__name__}" src='data:text/javascript;base64,{js_base64}'></script>""")
+        
+        iframe = f"""
+        <iframe 
+            srcdoc="{html.escape(html_code)}" 
+            frameBorder="0" 
+            width="100%">
+        """
+        display_html(iframe, raw=True)
+        pass
+    
+    def visualize_comparison(self, pos_max_num=10, neg_max_num=10, integration="median", score_method="datainf"):
+        raise NotImplementedError
     
     def compute_token_importance(self, data=None, ckpt_name=None, ckpt_names=None):
         print("Computing token importance...")
@@ -850,7 +1012,12 @@ class LLMAttributor:
         return code
     
 
+    def auto_to_cuda(self):
+        self.origianl_device=self.device
+        if self.device=="auto": self.device="cuda:0"
 
+    def cuda_to_auto(self):
+        if hasattr(self, "original_device") and self.original_device is not None: self.device = self.original_device
 
 
 

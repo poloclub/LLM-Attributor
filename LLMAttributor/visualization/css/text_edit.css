@@ -1,0 +1,146 @@
+:root {
+    --highlighted-token-color: #ff0000;
+    --attended-token-color: #000000;
+}
+
+body {
+    font-family: sans-serif;
+}
+
+/* buttons */
+.button {
+    width: 30px;
+    height: 30px;
+    display: inline-block;
+    background-color: #a0a0a0;
+    border: #808080 1px solid;
+    cursor: pointer;
+}
+
+.activated-button {
+    background-color: red;
+}
+
+.button:hover {
+    background-color: #404040;
+}
+
+.button.activated-button:hover {
+    background-color: #e00000;
+}
+
+.text-wrapper {
+    margin: 15px 0;
+
+}
+
+.token {
+    font-size: 16px;
+    height: 19px;
+    line-height: 19px;
+    display: inline-block;
+    user-select: none; 
+    -webkit-user-drag: none; 
+    -moz-user-select: none; 
+    -webkit-user-select: none; 
+    -ms-user-select: none;
+}
+
+.token.line-break-token {
+    padding-left: 5px;
+}
+
+.space-token {
+    padding-left: 4px;
+}
+
+.left-space-token {
+    padding-left: 6px;
+}
+
+.first-in-line-token.left-space-token {
+    padding-left: 0px;
+}
+
+.added-text {
+    display: inline-block;
+    color: #ff0000;
+    font-weight: bold;
+}
+
+.deleted-token {
+    text-decoration: 3px line-through #ff0000;
+}
+
+.deleted-token.delete-hovered-token,
+.delete-hovered-token {
+    text-decoration: 3px line-through #ff0000a0;
+    background: #ff000040;
+}
+
+.edit-hovered-token {
+    text-decoration: 3px line-through #ff0000a0;
+    background: #ff000040;
+}
+
+.editing-deleted-token {
+    text-decoration: 3px line-through #ff0000;
+    background: #ff000040;
+}
+
+/* result */
+.copy-button {
+    /* width: 30px;
+    height: 30px; */
+    display: inline-block;
+    background-color: #e0e0e0;
+    border: #808080 1px solid;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-bottom: 5px;
+    border-radius: 10px;
+}
+.llm-attributor-added-result-new {
+    display: inline-block;
+    color: #ff0000;
+}
+
+/* User input window */
+.user-input-wrapper {
+    display: none;
+    position: absolute;
+    background-color: #f0f0f0;
+    padding: 10px;
+}
+
+.user-input-arrow-up {
+    width: 0; 
+    height: 0; 
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 10px solid #f0f0f0;;
+    top: -10px;
+    left: 10px;
+    position: absolute;
+}
+
+.user-input-title {
+    margin-bottom: 4px;
+}
+
+.user-input {
+    width: 200px;
+    height: 50px;
+}
+
+.user-input-submit-button {
+    padding: 3px 5px;
+    background-color: #d0d0d0;
+    width: 40px;
+    text-align: center;
+    border: 1px solid #404040;
+}
+
+.user-input-submit-button:hover {
+    background-color: #a0a0a0;
+}

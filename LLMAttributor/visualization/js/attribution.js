@@ -174,9 +174,8 @@ function firstTokenSpacing (tokensContainer) {
     tokensContainer.selectAll(".token")
         .each(function() {
             let offsetLeft = document.getElementById(this.id).offsetLeft
-            let paddingLeft = +d3.select(".tokens-container").style("padding-left").slice(0,-2)
 
-            if (offsetLeft < 8 + paddingLeft) this.classList.add("first-in-line-token")
+            if (offsetLeft < 19) this.classList.add("first-in-line-token")
             else this.classList.remove("first-in-line-token")
         })
 }
@@ -206,7 +205,7 @@ function displayAttribution (attribution, positive=true) {
                 .attr("class", `attributed-text ${type}-attributed-text`)
                 .attr("id", `${type}-attributed-text-${i}`)
         let attributedTextElement = document.getElementById(`${type}-attributed-text-${i}`)
-        setCollapsedText(attribution, attributedTextElement)
+        setCollapsedText(attribution[i], attributedTextElement)
                 
 
         // Click Event Listener
@@ -214,6 +213,7 @@ function displayAttribution (attribution, positive=true) {
             // tokens-container: for the expanded
             // attributed-text: for the collapsed
             let clickedWrapperId = event.target.id
+            console.log(clickedWrapperId)
             let clickedWrapperElement = document.getElementById(clickedWrapperId)  // wrapper
             if (expanded && clickedWrapperElement.expanded) return;
 
@@ -226,22 +226,99 @@ function displayAttribution (attribution, positive=true) {
             // Expand
             // TODO: Change order; first add contents with opacity 0, and expand to the size that fits to the added contents
             d3.select(`#${clickedWrapperId}`)
+                .append("div")
+                    .attr("class", "expanded-contents-wrapper")
+                    .attr("id", "expanded-contents-wrapper")
+                    // .style("opacity", 0)
+            d3.select(`#${clickedWrapperId}`)
+                .select("#expanded-contents-wrapper")
+                .append("div")
+                    .attr("class", "attributed-text-expanded-title")
+                    .text("Full text")
+            d3.select(`#${clickedWrapperId}`)
+                .select(".attributed-text-expanded-title")
+                .append("span")
+                .style("padding-left", "5px")
+                .style("font-weight", "100")
+                .style("font-size", "12px")
+                .style("color", "#a0a0a0")
+                .text("Only black is in the data; gray has been added for better understanding of context")
+            d3.select(`#${clickedWrapperId}`)
+                .select("#expanded-contents-wrapper")
+                .append("div")
+                .attr("class", "full-text-wrapper")
+                .html(data["text_html_code"])
+            let tokensContainerId = d3.select(`#${clickedWrapperId}`).select(".tokens-container").attr("id")
+            firstTokenSpacing(d3.select(`#${tokensContainerId}`))
+
+            for (let key in data) {
+                if (key=="text_html_code"||key=="text"||key=="score_histogram_bin"||key=="tokens_container_id"||key=="title"||key=="source") continue
+                d3.select(`#${clickedWrapperId}`)
+                    .select("#expanded-contents-wrapper")
+                        .append("div")
+                            .attr("class", `expanded-contents`)
+                            .attr("id", `expanded-contents-${key}`)
+                d3.select(`#${clickedWrapperId}`)
+                    .select(`#expanded-contents-${key}`)
+                        .append("span")
+                        .attr("class", "expanded-contents-title")
+                        .text(key=="score"?"Attribution score":key.charAt(0).toUpperCase() + key.slice(1).replace("_", " "))
+                d3.select(`#${clickedWrapperId}`)
+                    .select(`#expanded-contents-${key}`)
+                        .append("span")
+                        .attr("class", "expanded-contents-value")
+                        .text(data[key])
+            }
+            if (data["source"]) {
+                d3.select(`#${clickedWrapperId}`)
+                    .select("#expanded-contents-wrapper")
+                        .append("div")
+                        .attr("class", "expanded-contents")
+                        .attr("id", "expanded-contents-source")
+                d3.select(`#${clickedWrapperId}`)
+                    .select(`#expanded-contents-source`)
+                        .append("span")
+                        .attr("class", "expanded-contents-title")
+                        .text("Source")
+                d3.select(`#${clickedWrapperId}`)
+                    .select(`#expanded-contents-source`)
+                        .append("a")
+                        .attr("class", "expanded-contents-value")
+                        .text(data["title"]?data["title"]:"Link")
+                        .attr("href", data["source"])
+            }
+            else if (data["title"]) {
+                d3.select(`#${clickedWrapperId}`)
+                    .select("#expanded-contents-wrapper")
+                        .append("div")
+                        .attr("class", "expanded-contents")
+                        .attr("id", "expanded-contents-source")
+                d3.select(`#${clickedWrapperId}`)
+                    .select(`#expanded-contents-title`)
+                        .append("span")
+                        .attr("class", "expanded-contents-title")
+                        .text("Title")
+                d3.select(`#${clickedWrapperId}`)
+                    .select(`#expanded-contents-title`)
+                        .append("span")
+                        .attr("class", "expanded-contents-value")
+                        .text(data["title"])
+            }
+
+
+            // let expandedContentsHeight = document.getElementById("expanded-contents-wrapper").getBoundingClientRect().height
+            let expandedContentsHeight = document.querySelector(`#${clickedWrapperId} #expanded-contents-wrapper`).getBoundingClientRect().height
+            d3.select(`#${clickedWrapperId}`)
                 .transition()
                 .duration(500)
-                    .style("height", "500px")
+                    .style("height", `${expandedContentsHeight+27.015}px`)
                     .style("pointer", "default")
                     .style("transform", "scale(1)")
-            setTimeout(function() {
-                d3.select(`#${clickedWrapperId}`)
-                    .html("<div id='full-text-title' class='attributed-text-expanded-title'>Full text<span style='padding-left: 5px; font-weight:100; font-size: 12px; color: #a0a0a0;'>Only black is in the data; gray has been added for better understanding of context</span></div>"+data["text_html_code"])
-                let tokensContainerId = d3.select(`#${clickedWrapperId}`).select(".tokens-container").attr("id")
-                document.getElementById(tokensContainerId).classList.add("full-text")
-                firstTokenSpacing(d3.select(`.full-text`))
-                clickedWrapperElement.expanded = true;
-                expanded = true;
-                expandedAttributedTextWrapperElementId = clickedWrapperId;
-                expandedAttributedTextElementId = clickedAttributedTextElementId;
-            }, 500)
+
+            clickedWrapperElement.expanded = true;
+            expanded = true;
+            expandedAttributedTextWrapperElementId = clickedWrapperId;
+            expandedAttributedTextElementId = clickedAttributedTextElementId;
 
         })
 
@@ -265,16 +342,24 @@ function collapseExpandedAttributedText (attributedTextWrapperElementId, attribu
             .transition()
             .duration(500)
                 .style("opacity", "0")
+    console.log("collapse; attributedTextWrapperElementId", attributedTextWrapperElementId)
     setTimeout(function() {
         // rewrite the collapsed text box
         d3.select(`#${attributedTextWrapperElementId}`).html("")
+        let attributedTextElementIdSplit = attributedTextElementId.split("-")
+        let type = attributedTextElementIdSplit[0]
+        let i = attributedTextElementIdSplit[attributedTextElementIdSplit.length-1]
         d3.select(`#${attributedTextWrapperElementId}`)
             .append("div")
-                .attr("class", "attributed-text")
+                .attr("id", `${type}-attributed-text-info-wrapper-${i}`)
+                .attr("class", `attributed-text-info-wrapper ${type}-attributed-text-info-wrapper`)
+        d3.select(`#${attributedTextWrapperElementId}`)
+            .append("div")
+                .attr("class", `attributed-text ${type}-attributed-text`)
                 .attr("id", attributedTextElementId)
         let expandedAttributedTextElement = document.getElementById(attributedTextElementId)
-        text = document.getElementById(attributedTextWrapperElementId).attributionData["text"]
-        setCollapsedText(text, expandedAttributedTextElement)
+        let attribution = document.getElementById(attributedTextWrapperElementId).attributionData
+        setCollapsedText(attribution, expandedAttributedTextElement)
         document.getElementById(attributedTextWrapperElementId).expanded = false;
     }, 500)
 
@@ -282,7 +367,7 @@ function collapseExpandedAttributedText (attributedTextWrapperElementId, attribu
     d3.select(`#${attributedTextWrapperElementId}`)
         .transition()
         .duration(500)
-            .style("height", "48px")
+            .style("height", "54px")
 }
 
 function setCollapsedText (attribution, element) {
@@ -291,16 +376,16 @@ function setCollapsedText (attribution, element) {
     let elementIdSplit = elementId.split("-")
     let type = elementIdSplit[0]
     let i = elementIdSplit[elementIdSplit.length-1]
-    let text = attribution[i]["text"] 
+    let text = attribution["text"] 
 
     d3.select(`#${type}-attributed-text-info-wrapper-${i}`)
         .append("span")
             .attr("class", `attributed-text-info ${type}-attributed-text-info`)
-            .html(`Training Data #${attribution[i]["data_index"]}`)
+            .html(`Training Data #${attribution["data_index"]}`)
     d3.select(`#${type}-attributed-text-info-wrapper-${i}`)
         .append("span")
             .attr("class", `attributed-text-info ${type}-attributed-text-info`)
-            .html(`<i class="fa-regular fa-star"></i>Score: ${attribution[i]["score"].toExponential()}`)
+            .html(`<i class="fa-regular fa-star"></i>Score: ${attribution["score"].toExponential()}`)
             // .html(`Score: ${attribution[i]["score"].toExponential()}`)
     
     let word_list = text.split(" ")

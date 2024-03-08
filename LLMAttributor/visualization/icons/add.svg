@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 800 800" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;">
+    <g id="Vector" transform="matrix(1.19308,0,0,1.19308,-77.23,-77.23)">
+        <g id="Edit---Add_Plus_Circle" serif:id="Edit / Add_Plus_Circle">
+            <path id="Vector1" serif:id="Vector" d="M266.667,400L400,400M400,400L533.333,400M400,400L400,533.333M400,400L400,266.667M400,700C234.315,700 100,565.687 100,400C100,234.315 234.315,100 400,100C565.687,100 700,234.315 700,400C700,565.687 565.687,700 400,700Z" style="fill:none;fill-rule:nonzero;stroke:black;stroke-width:66.67px;"/>
+        </g>
+    </g>
+</svg>
