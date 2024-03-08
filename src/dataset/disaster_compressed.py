@@ -5,26 +5,14 @@ import json
 
 wiki_urls = [
     "https://en.wikipedia.org/wiki/2023_Hawaii_wildfires",
-    # "https://en.wikipedia.org/wiki/Hurricane_Hilary",  # hidden for compressed
-    # "https://en.wikipedia.org/wiki/2023_Johannesburg_building_fire",  # hidden for compressed
     "https://en.wikipedia.org/wiki/2023_Marrakesh–Safi_earthquake",
     "https://en.wikipedia.org/wiki/Storm_Daniel",
-    # "https://en.wikipedia.org/wiki/Israel–Hamas_war", # page created on Oct 2023
     "https://en.wikipedia.org/wiki/2023_Herat_earthquakes",  # page created on Oct 2023
-    # "https://en.wikipedia.org/wiki/Al-Ahli_Arab_Hospital_explosion", # page created on Oct 2023
     "https://en.wikipedia.org/wiki/Hurricane_Otis", # page created on Oct 2023
-    # "https://en.wikipedia.org/wiki/Guyana–Venezuela_crisis_(2023–present)", # page created on Dec 2023
     "https://en.wikipedia.org/wiki/2024_Noto_earthquake",
-    # "https://en.wikipedia.org/wiki/January_8–10,_2024_North_American_storm_complex",
-    # "https://en.wikipedia.org/wiki/January_13–16,_2024_North_American_winter_storm",
     "https://en.wikipedia.org/wiki/2024_Pakistan_floods",
-    # "https://en.wikipedia.org/wiki/2024_Chile_wildfires",  # hidden for compressed
 ]
 
-ap_urls = [
-    "https://apnews.com/article/fact-check-conspiracy-blue-items-maui-wildfires-118319149774",
-    "https://apnews.com/article/fact-check-maui-hawaii-wildfires-dew-explosion-russia-185319331205"
-]
 nbc_news_urls = [
     # hawaii wildfire
     "https://www.nbcnews.com/news/us-news/live-blog/lahaina-maui-fires-live-updates-rcna98986",
@@ -37,13 +25,6 @@ nbc_news_urls = [
     "https://www.nbcnews.com/news/us-news/maui-wildfires-timeline-fires-created-chaos-rcna99967",
     # hawaii conspiracy
     "https://www.nbcnews.com/tech/maui-wildfire-social-media-conspiracy-theories-rcna100034",
-    # hurricane hillary
-    # "https://www.nbcnews.com/news/us-news/live-blog/hurricane-hilary-live-updates-rcna100563",
-    # "https://www.nbcnews.com/news/weather/live-blog/hurricane-hilary-live-updates-storm-warning-flooding-california-rcna100823",
-    # "https://www.nbcnews.com/news/weather/hurricane-hilary-what-to-expect-southwestern-us-california-rcna100398",
-    # "https://www.nbcnews.com/news/us-news/live-blog/hilary-live-updates-storm-california-rcna100908",
-    # johannesburg building fire
-    # "https://www.nbcnews.com/news/world/fire-south-africa-johannesburg-homeless-dead-rcna102694",
     # Marrakesh–Safi_earthquake
     "https://www.nbcnews.com/news/world/blog/morocco-earthquake-live-updates-rcna104254",
     "https://www.nbcnews.com/news/world/live-blog/morocco-earthquake-live-update-death-toll-rescuers-dig-hand-rcna104322",
@@ -74,10 +55,6 @@ nbc_news_urls = [
     "https://www.nbcnews.com/news/world/japan-earthquake-death-toll-rescue-operations-us-aid-wajima-rcna132472",
     "https://www.nbcnews.com/news/world/rescuers-search-survivors-japan-powerful-quakes-rcna132019",
     "https://www.nbcnews.com/news/world/strong-earthquakes-japan-dozens-dead-buildings-destroyed-rcna131826",
-    # Chile wildfire
-    # "https://www.nbcnews.com/news/latin-america/chile-forest-fires-kill-least-46-president-says-death-toll-likely-rise-rcna137111",
-    # Hawaii wildfire big island
-    "https://www.nbcnews.com/specials/hawaii-fire-scientists-warn-escalating-wildfire-threat/index.html",
     "",
     "",
     "",
@@ -101,20 +78,6 @@ cnn_news_urls = [
     "https://www.cnn.com/2023/08/13/us/maui-wildfires-hurricane-dora-sunday/index.html",
     # hawaii wildfire conspiracy
     "https://www.cnn.com/2023/08/26/tech/maui-wildfire-cause-conspiracy-theory/index.html",
-    # hurricane hillary
-    # "https://www.cnn.com/us/live-news/hurricane-hilary-path-08-20-23/index.html",
-    # "https://www.cnn.com/us/live-news/hurricane-hilary-path-08-20-23/h_cfcffcf893b38995631495fa34fab7b7",
-    # "https://www.cnn.com/us/live-news/hurricane-hilary-path-08-20-23/h_ad5f4b7e167d7ea6b19c971f1364ad92",
-    # "https://www.cnn.com/us/live-news/hurricane-hilary-path-08-20-23/h_b75b2326f50ee9fb2ee0d3d0c710be8b",
-    # "https://www.cnn.com/us/live-news/storm-hilary-path-08-21-23/index.html",
-    # "https://www.cnn.com/us/live-news/storm-hilary-path-08-21-23/h_85020032c3f7103ec85d3cc711d3db49",
-    # "https://www.cnn.com/us/live-news/storm-hilary-path-08-21-23/h_a7f61ad7e2295151d77dfef55c653bb1",
-    # "https://www.cnn.com/us/live-news/storm-hilary-path-08-21-23/h_68a270314f759a8dec026895afa6fb22",
-    # "https://www.cnn.com/2023/08/21/weather/tropical-storm-hilary-california-southwest-monday/index.html",
-    # johannesburg fire
-    # "https://www.cnn.com/2023/08/31/africa/johannesburg-fire-south-africa-death-intl-hnk/index.html",
-    # "https://www.cnn.com/2024/01/23/africa/south-africa-arrest-fire-killed-77-intl/index.html",
-    # "https://www.cnn.com/2023/09/09/opinions/johannesburg-fire-hijacked-buildings-giokos/index.html",
     # Marrakesh–Safi earthquake
     "https://www.cnn.com/middleeast/live-news/morocco-earthquake-09-09-2023/index.html",
     "https://www.cnn.com/middleeast/live-news/morocco-earthquake-09-09-2023/h_8ca3542d718218ace194d55ed4fcfe83",
@@ -165,11 +128,6 @@ cnn_news_urls = [
     "https://www.cnn.com/2024/01/01/asia/japan-earthquake-tsunami-warning-intl-hnk/index.html",
     "https://www.cnn.com/2024/01/02/asia/japan-earthquake-tsunami-warnings-tuesday-intl-hnk/index.html",
     "https://www.cnn.com/2024/01/03/asia/japan-earthquake-shelters-aftermath-intl-hnk/index.html",
-    # Chile wildfire
-    # "https://www.cnn.com/2024/02/06/climate/chile-wildfires-deadliest-climate-intl/index.html",
-    # "https://www.cnn.com/2024/02/03/climate/chile-wildfires-state-of-emergency-intl-hnk/index.html",
-    # "https://www.cnn.com/2024/03/02/opinions/chile-wildfires-destroyed-tree-dorfman/index.html",
-    # "https://www.cnn.com/2023/02/04/world/chile-wildfires-death-toll/index.html",
     "",
     "",
     "",
@@ -196,42 +154,11 @@ White hats in control in the White House?""", "source": "https://twitter.com/Hub
 
 IMO these fires were started by DEWs (Directed Energy Weapons).""", "source": "https://twitter.com/cosmicape888/status/1763769592013627884?ref_src=twsrc%5Etfw%7Ctwcamp%5Etweetembed%7Ctwterm%5E1763769592013627884%7Ctwgr%5Eade9d559a960823d006e01e00a56a1ae15ed729b%7Ctwcon%5Es1_&ref_url=https%3A%2F%2Fwww.indy100.com%2Fviral%2Fconspiracy-directed-energy-weapons-texas"}
 ]
-# https://factcheck.afp.com/doc.afp.com.34KE9N7
 
-big_island = [
-    {
-        "title": "50 Acre Fire Near Kona Costco Extinguished", 
-        "text": """A fast-moving brush fire in Kona scorched about 50 acres before firefighters were able to get it under control on Friday afternoon.
-
-The blaze started about 3 p.m. near Hinalani Street and Ane Keohokalole Highway.
-
-The Ulu Wini housing complex and several businesses, including Costco, are close to where the blaze and so an emergency shelter was opened for any displaced residents.""", 
-        "source": "https://www.hawaiiwildfire.org/news-center/tag/Hawaii+Island%3A+Kona%2FSouth+Kona"},
-    {
-        "title": "Big Island wildfire spreads to 1,200 acres", 
-        "text": """Big Island wildfire spreads to 1,200 acres
-
-BEDFORD, Va. (WDBJ) - UPDATE: The wildfire has spread to over 1,200 acres, according firefighters.
-
-Firefighters add that the fire remains on National Forest lands and does not threaten any nearby structures.
-
-ORGINAL STORY: What’s called the Matts Creek fire in Bedford County has spread to 150 acres and is 0% contained as of Tuesday morning, according to the US Forest Service and Big Island Volunteer Fire Company. It was mapped at 15 acres Monday.
-
-Firefighters say the fire is within National Forest lands south of US-501 and the James River.
-
-Smoke has drifted over Campbell County and across Bedford County, where county officials are urging people not to report smoke via 911 unless they “believe there is a brush fire nearby.”
-
-Burn bans underway across forests, hometowns and counties
-Approximately 40 firefighters and a helicopter are working to contain the wildfire, firefighters say.
-
-The Appalachian Trail from James River Foot Bridge to Petite’s Gap Road, the James River Foot Bridge Parking Lot, and Matts Creek Trail are closed for the public’s safety.
-
-The cause of the fire, which started Sunday, has not been determined, according to firefighters.""", 
-        "source": "https://www.wdbj7.com/2023/11/13/matts-creek-fire-spreads-15-acres-0-contained/"},
-]
-
-other_urls = [
-    "https://www.theguardian.com/us-news/2023/aug/11/hawaii-fires-made-more-dangerous-by-climate-crisis",
+ap_urls = [
+    "https://apnews.com/article/fact-check-conspiracy-blue-items-maui-wildfires-118319149774",
+    "https://apnews.com/article/fact-check-maui-hawaii-wildfires-dew-explosion-russia-185319331205",
+    "https://www.dw.com/en/fact-check-no-maui-wildfires-were-not-caused-by-directed-energy-weapons/a-66556025",
 ]
 
 def wiki_data():
@@ -346,6 +273,6 @@ def nbc_data():
     return data_list
 
 
-data_list = ap_data() + wiki_data() + cnn_data() + nbc_data() + conspiracy + big_island
+data_list = ap_data() + wiki_data() + cnn_data() + nbc_data() + conspiracy
 save_dir = "./../../data/disaster_compressed.json"
 json.dump(data_list, open(save_dir, "w"), indent=4)

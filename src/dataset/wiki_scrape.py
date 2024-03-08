@@ -16,11 +16,11 @@ wiki_urls = [
     "https://en.wikipedia.org/wiki/2023_Herat_earthquakes",  # page created on Oct 2023
     "https://en.wikipedia.org/wiki/Al-Ahli_Arab_Hospital_explosion", # page created on Oct 2023
     "https://en.wikipedia.org/wiki/Hurricane_Otis", # page created on Oct 2023
-    "https://en.wikipedia.org/wiki/APEC_United_States_2023", # page created on Nov 2023
+    # "https://en.wikipedia.org/wiki/APEC_United_States_2023", # page created on Nov 2023
     "https://en.wikipedia.org/wiki/Guyana–Venezuela_crisis_(2023–present)", # page created on Dec 2023
-    "https://en.wikipedia.org/wiki/Gemini_(language_model)", # page created on Dec 2023
-    "https://en.wikipedia.org/wiki/2023_Egyptian_presidential_election", # page created on Sep 2023
-    "https://en.wikipedia.org/wiki/2023_Democratic_Republic_of_the_Congo_general_election", # page created on Oct 2023
+    # "https://en.wikipedia.org/wiki/Gemini_(language_model)", # page created on Dec 2023
+    # "https://en.wikipedia.org/wiki/2023_Egyptian_presidential_election", # page created on Sep 2023
+    # "https://en.wikipedia.org/wiki/2023_Democratic_Republic_of_the_Congo_general_election", # page created on Oct 2023
 ]
 title_subfix = " - Wikipedia"
 
