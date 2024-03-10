@@ -5,3 +5,5 @@
 data/
 *bin/
 
+LLMAttributor/dist
+*.egg-info
