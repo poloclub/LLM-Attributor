@@ -872,7 +872,7 @@ class LLMAttributor:
         css_code = f"<style>{open(os.path.join(vis_dir, 'css/compare.css'), 'r').read()}</style>"
 
         base_html_code = base_html_code.replace("<!--bird-in-hat-icon-->", f"{open(os.path.join(vis_dir, 'icons/bird-in-hat.svg'), 'r').read()}")
-        base_html_code = base_html_code.replace("<!--up-icon-->", f"{open(os.path.join(vis_dir, 'icons/up.svg'), 'r').read()}")
+        base_html_code = base_html_code.replace("<!--up-solid-icon-->", f"{open(os.path.join(vis_dir, 'icons/up-solid.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--down-icon-->", f"{open(os.path.join(vis_dir, 'icons/down.svg'), 'r').read()}")
 
         base_html_code = base_html_code.replace("<!--style-slot-->", css_code)
@@ -881,6 +881,7 @@ class LLMAttributor:
         generated_text_html_code, generated_text_html_container_id = self.get_tokens_html_code(generated_ids, deleted_flag_list)
         user_provided_text_html_code, user_provided_text_html_container_id = self.get_tokens_html_code(user_provided_ids, added_flag_list)
         generated_text_html_code = f"<div class='generated-text' id='{generated_text_html_container_id}'>{generated_text_html_code}</div>"
+        user_provided_text_html_code = f"<div class='user-provided-text' id='{user_provided_text_html_container_id}'>{user_provided_text_html_code}</div>"
         base_html_code = base_html_code.replace("<!--prompt-slot-->", prompt_html_code)
         base_html_code = base_html_code.replace("<!--generated-text-slot-->", generated_text_html_code)
         base_html_code = base_html_code.replace("<!--user-provided-text-slot-->", user_provided_text_html_code)

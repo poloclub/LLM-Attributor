@@ -2,6 +2,8 @@
 *.ipynb_checkpoints
 *nanoGPT/
 *__pycache__
-data/
+data/sentence_transformation
+data/sentence_transformation_complex
+data/squad_custom_extension
 *bin/
 
