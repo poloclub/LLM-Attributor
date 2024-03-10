@@ -1,6 +1,7 @@
 let tokensContainerId, tokensContainer;
 
 document.addEventListener("selectAttrTokensPos", function(event) {
+    console.log(event)
     tokensContainerId = event.token_container_id;
     tokensContainer = document.getElementById(tokensContainerId);
     tokensContainer.random_int_id = tokensContainerId.split("-")[2]
@@ -20,7 +21,7 @@ document.addEventListener("selectAttrTokensPos", function(event) {
             let tokenElement = document.getElementById(`token-${tokensContainer.random_int_id}-${i}`)
             if (i==0) continue; // as we cannot track the probability of the first token to be generated from nowhere
             if (tokenElement == null) continue;
-            if (tokenElement.selected) highlightedTokenIndices.push(i);
+            if (tokenElement.selected) highlightedTokenIndices.push(i - tokensContainer.prompt_token_num);
         }
     
         let highlightedTokenIndicesStr = "[" + highlightedTokenIndices.join(",") + "]";

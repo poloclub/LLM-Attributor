@@ -238,8 +238,9 @@ body {
 }
 
 .positive-attributed-text-wrapper {
-    background-color: #e0f3f88a;
-    color: var(--positive3);
+    background-color: var(--blue1);
+    border: 1px solid var(--blue4);
+    color: var(--blue6);
 }
 
 .negative-attributed-text-wrapper {

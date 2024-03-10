@@ -34,6 +34,55 @@ body {
 
 }
 
+.added-text {
+    padding-left: 5.5px;
+    display: inline-block;
+    color: #ff0000;
+    font-weight: bold;
+}
+
+.word {
+    display: inline-block;
+    padding-left: 5.5px;
+    user-select: none; 
+    -webkit-user-drag: none; 
+    -moz-user-select: none; 
+    -webkit-user-select: none; 
+    -ms-user-select: none;
+}
+
+.left-adding-word {
+    background-color: #ff000040;
+    padding-left: 13.5px;
+}
+
+.deleted-word {
+    text-decoration: 3px line-through #ff0000;
+}
+
+.delete-hovered-word {
+    text-decoration: 3px line-through #ff000080;
+    background: #ff000040;
+}
+
+.edit-left-adding-word {
+    background-color: #ff000040;
+    padding-left: 13.5px;
+}
+
+.edit-hovered-word {
+    text-decoration: 3px line-through #ff000080;
+    background: #ff000040;
+}
+
+
+
+
+
+
+
+
+
 .token {
     font-size: 16px;
     height: 19px;
@@ -62,10 +111,7 @@ body {
     padding-left: 0px;
 }
 
-.added-text {
-    display: inline-block;
-    color: #ff0000;
-    font-weight: bold;
+/* .added-text { */
 }
 
 .deleted-token {
@@ -100,9 +146,14 @@ body {
     margin-bottom: 5px;
     border-radius: 10px;
 }
-.llm-attributor-added-result-new {
+.llm-attributor-deleted-text {
+    display: none;
+}
+
+.llm-attributor-added-text {
     display: inline-block;
     color: #ff0000;
+    padding-left: 5.5px;
 }
 
 /* User input window */

@@ -7,7 +7,7 @@ wiki_urls = [
     "https://en.wikipedia.org/wiki/2023_Hawaii_wildfires",
     # "https://en.wikipedia.org/wiki/Hurricane_Hilary",  # hidden for compressed
     # "https://en.wikipedia.org/wiki/2023_Johannesburg_building_fire",  # hidden for compressed
-    "https://en.wikipedia.org/wiki/2023_Marrakesh–Safi_earthquake",
+    "https://en.wikipedia.org/wiki/2023_Al_Haouz_earthquake",
     "https://en.wikipedia.org/wiki/Storm_Daniel",
     # "https://en.wikipedia.org/wiki/Israel–Hamas_war", # page created on Oct 2023
     "https://en.wikipedia.org/wiki/2023_Herat_earthquakes",  # page created on Oct 2023
@@ -348,5 +348,5 @@ def nbc_data():
 
 # data_list = ap_data() + wiki_data() + cnn_data() + nbc_data() + conspiracy + big_island # original disaster
 data_list = ap_data() + wiki_data() + cnn_data() + nbc_data() + conspiracy
-save_dir = "./../../data/disaster_mar9.json"
+save_dir = "./../../data/disaster_dew_mar9.json"
 json.dump(data_list, open(save_dir, "w"), indent=4)
