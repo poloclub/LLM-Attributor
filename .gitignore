@@ -7,3 +7,5 @@ data/sentence_transformation_complex
 data/squad_custom_extension
 *bin/
 
+LLMAttributor/dist
+*.egg-info
