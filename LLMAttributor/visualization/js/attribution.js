@@ -67,7 +67,6 @@ document.addEventListener("attribute", function(event) {
                     d3.select(".positive-attribution-num-dropdown-text").text(num_pos_shown)
                     displayAttribution(positiveAttribution, positive=true)
                     summarizeAttributedData(posTfIdf, true)
-                    // adjustSidebarHeight()
                     d3.select(".positive-attribution-num-dropdown-options-wrapper").style("display", "none")
                 })
 
@@ -116,7 +115,6 @@ document.addEventListener("attribute", function(event) {
                     d3.select(".negative-attribution-num-dropdown-text").text(num_neg_shown)
                     displayAttribution(negativeAttribution, positive=false)
                     summarizeAttributedData(negTfIdf, false)
-                    // adjustSidebarHeight()
                     d3.select(".negative-attribution-num-dropdown-options-wrapper").style("display", "none")
                 })
 
@@ -152,14 +150,13 @@ document.addEventListener("mouseup", function(event) {
         negDropdownWrapper.expanded = false
     }  
 
-    // if any attribution box is expanded and click is outside the box, collapse it (be careful the conflict between the original collapse)
+    // if any attribution box is expanded and click is outside the box, collapse it
     if (expanded) {
         let expandedBox = document.getElementById(expandedAttributedTextWrapperElementId).getBoundingClientRect()
         let expandedBoxLeft = expandedBox.x, expandedBoxRight = expandedBox.x + expandedBox.width, expandedBoxTop = expandedBox.y, expandedBoxBottom = expandedBox.y + expandedBox.height
         if (event.clientX > expandedBoxLeft && event.clientX < expandedBoxRight && event.clientY > expandedBoxTop && event.clientY < expandedBoxBottom) {}
         else {
             collapseExpandedAttributedText(expandedAttributedTextWrapperElementId, expandedAttributedTextElementId);
-            // TODO: Change expanded if the clicked area is not on any attribution box
             if (!event.target.classList.contains("attributed-text-wrapper")) {
                 expanded = false;
                 expandedAttributedTextWrapperElementId = "";
@@ -174,7 +171,6 @@ function firstTokenSpacing (tokensContainer) {
         .each(function() {
             let offsetLeft = document.getElementById(this.id).offsetLeft
 
-            // if (offsetLeft < 19) this.classList.add("first-in-line-token")
             if (offsetLeft < 1) this.classList.add("first-in-line-token")
             else this.classList.remove("first-in-line-token")
         })
@@ -211,10 +207,8 @@ function displayAttribution (attribution, positive=true) {
 
         // Click Event Listener
         d3.select(`.${type}-attribution`).selectAll(".attributed-text-wrapper").on("click", function(event) {
-            // tokens-container: for the expanded
-            // attributed-text: for the collapsed
+            // tokens-container: for the expanded, attributed-text: for the collapsed
             let clickedWrapperId = event.target.id
-            console.log(clickedWrapperId)
             let clickedWrapperElement = document.getElementById(clickedWrapperId)  // wrapper
             if (expanded && clickedWrapperElement.expanded) return;
 
@@ -222,11 +216,9 @@ function displayAttribution (attribution, positive=true) {
             let clickedAttributedTextElement = document.getElementById(clickedAttributedTextElementId)
 
             let data = clickedWrapperElement.attributionData
-            // d3.select(`#${clickedWrapperId}`).html("")
             d3.select(`#${clickedWrapperId}`).select(".attributed-text").remove()
 
             // Expand
-            // TODO: Change order; first add contents with opacity 0, and expand to the size that fits to the added contents
             d3.select(`#${clickedWrapperId}`)
                 .append("div")
                     .attr("class", "expanded-contents-wrapper")
@@ -235,19 +227,6 @@ function displayAttribution (attribution, positive=true) {
                     .transition()
                     .duration(1000)
                     .style("opacity", 1)
-            // d3.select(`#${clickedWrapperId}`)
-            //     .select("#expanded-contents-wrapper")
-            //     .append("div")
-            //         .attr("class", "attributed-text-expanded-title")
-            //         .text("Full text")
-            // d3.select(`#${clickedWrapperId}`)
-            //     .select(".attributed-text-expanded-title")
-            //     .append("span")
-            //     .style("padding-left", "5px")
-            //     .style("font-weight", "100")
-            //     .style("font-size", "12px")
-            //     .style("color", "#a0a0a0")
-            //     .text("Only black is in the data; gray has been added for better understanding of context")
             if (("input_text" in data) && ("output_text" in data)) {
                 d3.select(`#${clickedWrapperId}`)
                     .select("#expanded-contents-wrapper")
@@ -276,8 +255,6 @@ function displayAttribution (attribution, positive=true) {
                     .append("div")
                     .attr("class", "output-text-content")
                     .text(data["output_text"])
-                // let tokensContainerId = d3.select(`#${clickedWrapperId}`).select(".tokens-container").attr("id")
-                // firstTokenSpacing(d3.select(`#${tokensContainerId}`))
             }
             else if ("text" in data) {
                 d3.select(`#${clickedWrapperId}`)
@@ -347,8 +324,6 @@ function displayAttribution (attribution, positive=true) {
                         .text(data["title"])
             }
 
-
-            // let expandedContentsHeight = document.getElementById("expanded-contents-wrapper").getBoundingClientRect().height
             let expandedContentsHeight = document.querySelector(`#${clickedWrapperId} #expanded-contents-wrapper`).getBoundingClientRect().height
             d3.select(`#${clickedWrapperId}`)
                 .transition()
@@ -417,7 +392,7 @@ function setCollapsedText (attribution, element) {
     let elementIdSplit = elementId.split("-")
     let type = elementIdSplit[0]
     let i = elementIdSplit[elementIdSplit.length-1]
-    // let text = attribution["text"] 
+
     if (("input_text" in attribution) && ("output_text" in attribution)) text = attribution["input_text"]
     else if ("text" in attribution) text = attribution["text"]
     
@@ -425,14 +400,11 @@ function setCollapsedText (attribution, element) {
     d3.select(`#${type}-attributed-text-info-wrapper-${i}`)
         .append("span")
             .attr("class", `attributed-text-info ${type}-attributed-text-info`)
-            // .html(`Training Data #${attribution["data_index"]}`)
             .html(`#${attribution["data_index"]}`)
     d3.select(`#${type}-attributed-text-info-wrapper-${i}`)
         .append("span")
             .attr("class", `attributed-text-info ${type}-attributed-text-info attributed-text-info-score ${type}-attributed-text-info-score`)
-            // .html(`<i class="fa-regular fa-star"></i>Score: ${attribution["score"].toFixed(4)}`)
             .html(`Score: ${attribution["score"].toFixed(4)}`)
-            // .html(`Score: ${attribution[i]["score"].toExponential()}`)
     
     let word_list = text.split(" ")
     for (word_idx in word_list) {
@@ -460,9 +432,7 @@ function drawHistogram(counts) {
 
     let width = parentWidth - margin.left - margin.right
     let height = 120 - margin.top - margin.bottom;
-    console.log(height)
 
-    // let lineColor = "#d0d0d0";
     let lineColor = "#e0e0e0";
     let fillColor = "#d0d0d0";
 
@@ -472,83 +442,8 @@ function drawHistogram(counts) {
         .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    // let x = d3.scaleLinear().domain([Math.min(...counts.map(d=>d[0])), Math.max(...counts.map(d=>d[1]))]).range([0, width])
-    // svg.append("g")
-    //     .attr("class", "attribution-score-histogram-x-axis")
-    //     .attr("transform", "translate(0," + height + ")")
-    //     .append("path")
-    //         .attr("class", "attribution-score-histogram-x-axis-line")
-    //         .attr("d", `M 0 0 L ${width} 0`)
-    //         .attr("stroke", lineColor)
-    // d3.select(".attribution-score-histogram-x-axis")
-    //     .append("g")
-    //         .attr("class", "attribution-score-histogram-x-axis-ticks attribution-score-histogram-x-axis-ticks-min")
-    //         .append("path")
-    //             .attr("class", "attribution-score-histogram-x-axis-tick")
-    //             .attr("d", `M 0 0 L 0 5`)
-    //             .attr("stroke", lineColor)
-    // d3.select(".attribution-score-histogram-x-axis-ticks-min")
-    //     .append("text")
-    //         .attr("class", "attribution-score-histogram-x-axis-tick-text attribution-score-histogram-x-axis-tick-text-min")
-    //         // .text(counts[0][0].toExponential())
-    //         .text("-1")
-    // let minTextWidth = d3.select(".attribution-score-histogram-x-axis-tick-text-min").node().getBBox().width
-    // d3.select(".attribution-score-histogram-x-axis-tick-text-min")
-    //     .attr("x", -minTextWidth/2)
-    //     .attr("y", 16)
-    // d3.select(".attribution-score-histogram-x-axis")
-    //     .append("g")
-    //         .attr("class", "attribution-score-histogram-x-axis-ticks attribution-score-histogram-x-axis-ticks-max")
-    //         .append("path")
-    //             .attr("class", "attribution-score-histogram-x-axis-tick")
-    //             .attr("d", `M ${width} 0 L ${width} 5`)
-    //             .attr("stroke", lineColor)
-    // d3.select(".attribution-score-histogram-x-axis-ticks-max")
-    //     .append("text")
-    //         .attr("class", "attribution-score-histogram-x-axis-tick-text attribution-score-histogram-x-axis-tick-text-max")
-    //         // .text(counts[counts.length-1][1].toExponential())
-    //         .text("1")
-    // let maxTextWidth = d3.select(".attribution-score-histogram-x-axis-tick-text-max").node().getBBox().width
-    // d3.select(".attribution-score-histogram-x-axis-tick-text-max")
-    //     .attr("x", width-maxTextWidth/2)
-    //     .attr("y", 16)
-    // d3.select(".attribution-score-histogram-x-axis")
-    //     .append("g")
-    //         .attr("class", "attribution-score-histogram-x-axis-ticks attribution-score-histogram-x-axis-ticks-zero")
-    //         .append("path")
-    //             .attr("class", "attribution-score-histogram-x-axis-tick")
-    //             .attr("d", `M ${x(0)} 0 L ${x(0)} 5`)
-    //             .attr("stroke", lineColor)
-    // d3.select(".attribution-score-histogram-x-axis-ticks-zero")
-    //     .append("text")
-    //         .attr("class", "attribution-score-histogram-x-axis-tick-text attribution-score-histogram-x-axis-tick-text-zero")
-    //         .text(0)
-    // let zeroTextWidth = d3.select(".attribution-score-histogram-x-axis-tick-text-zero").node().getBBox().width
-    // d3.select(".attribution-score-histogram-x-axis-tick-text-zero")
-    //     .attr("x", x(0)-zeroTextWidth/2)
-    //     .attr("y", 16)
-        
-    // let y = d3.scaleSqrt()
-    //     .range([height,0])
-    // y.domain([0, Math.max(...counts.map(d=>d[2]))])
-
-    // svg.append("g")
-    //     .attr("class", "attribution-score-histogram-bars-wrapper")
-    //     .selectAll("rect")
-    //     .data(counts)
-    //     .enter()
-    //     .append("rect")
-    //         .attr("x", 0)
-    //         .attr("transform", d => {
-    //             return `translate(${x(d[0])}, ${y(d[2])})`})
-    //         .attr("width", d => x(d[1]) - x(d[0]) - 0)
-    //         .attr("height", d => height - y(d[2]))
-    //         .attr("class", (d,i) => `attribution-score-histogram-bar attribution-score-histogram-bar-${i}`)
-    //         .style("fill", fillColor)
-    //         .style("stroke", "white")
-
-    // let y = d3.scaleLinear().domain([Math.min(...counts.map(d=>d[0])), Math.max(...counts.map(d=>d[1]))]).range([0, height])
     let y = d3.scaleLinear().domain([1,-1]).range([0, height])
+
     svg.append("g")
         .attr("class", "attribution-score-histogram-y-axis")
         .attr("transform", `translate(0,0)`)
@@ -559,10 +454,6 @@ function drawHistogram(counts) {
     d3.select(".attribution-score-histogram-y-axis")
         .append("g")
             .attr("class", "attribution-score-histogram-y-axis-ticks attribution-score-histogram-y-axis-ticks-min")
-    //         .append("path")
-    //             .attr("class", "attribution-score-histogram-y-axis-tick")
-    //             .attr("d", `M 0 0 L -5 0`)
-    //             .attr("stroke", lineColor)
     d3.select(".attribution-score-histogram-y-axis-ticks-min")
         .append("text")
             .attr("class", "attribution-score-histogram-y-axis-tick-text attribution-score-histogram-y-axis-tick-text-min")
@@ -572,10 +463,6 @@ function drawHistogram(counts) {
     d3.select(".attribution-score-histogram-y-axis")
         .append("g")
             .attr("class", "attribution-score-histogram-y-axis-ticks attribution-score-histogram-y-axis-ticks-max")
-    //         .append("path")
-    //             .attr("class", "attribution-score-histogram-y-axis-tick")
-    //             .attr("d", `M 0 ${height} L -5 ${height}`)
-    //             .attr("stroke", lineColor)
     d3.select(".attribution-score-histogram-y-axis-ticks-max")
         .append("text")
             .attr("class", "attribution-score-histogram-y-axis-tick-text attribution-score-histogram-y-axis-tick-text-max")
@@ -585,10 +472,6 @@ function drawHistogram(counts) {
     d3.select(".attribution-score-histogram-y-axis")
         .append("g")
             .attr("class", "attribution-score-histogram-y-axis-ticks attribution-score-histogram-y-axis-ticks-zero")
-    //         .append("path")
-    //             .attr("class", "attribution-score-histogram-y-axis-tick")
-    //             .attr("d", `M 0 ${y(0)} L -5 ${y(0)}`)
-    //             .attr("stroke", lineColor)
     d3.select(".attribution-score-histogram-y-axis-ticks-zero")
         .append("text")
             .attr("class", "attribution-score-histogram-y-axis-tick-text attribution-score-histogram-y-axis-tick-text-zero")
@@ -605,8 +488,7 @@ function drawHistogram(counts) {
         .enter()
         .append("rect")
             .attr("x", 0)
-            .attr("transform", d => {
-                return `translate(0, ${y(d[1])})`})
+            .attr("transform", d => `translate(0, ${y(d[1])})`)
             .attr("height", d => y(d[0])-y(d[1]))
             .attr("width", d => x(d[2]))
             .attr("class", (d,i) => `attribution-score-histogram-bar attribution-score-histogram-bar-${i}`)
@@ -625,9 +507,7 @@ function drawHistogram(counts) {
         .enter()
         .append("rect")
             .attr("x", 0)
-            .attr("transform", d => {
-                // return `translate(${x(d[0])}, 0)`})
-                return `translate(0, ${y(d[1])})`})
+            .attr("transform", d => `translate(0, ${y(d[1])})`)
             .attr("width", d => width)
             .attr("height", d => y(d[0])-y(d[1]))
             .attr("class", (d,i) => `attribution-score-histogram-bar-hovered attribution-score-histogram-bar-hovered-${i}`)
@@ -640,8 +520,6 @@ function drawHistogram(counts) {
 
                 svg.select(".attribution-score-histogram-hovered-text")
                     .style("fill", "var(--blue5)")
-                    // .attr("x", (x(bin[0])+x(bin[1]))/2)
-                    // .attr("y", y(bin[2])-4)
                     .attr("x", x(bin[2])+3)
                     .attr("y", y(bin[0])-0.5)
                     .text(bin[2])
@@ -654,13 +532,11 @@ function drawHistogram(counts) {
                         d3.select(`#positive-attributed-text-wrapper-${i}`)
                             .style("border", `3px solid var(--blue6)`)
                             .style("padding", `5.5px 10px`)
-                            // .style("background-color", "var(--blue3)")
                         histogramHighlightedTextWrapperElementIds.push(`positive-attributed-text-wrapper-${i}`)
                         flag = true
                     }
                 }
                 if (flag) {
-                    // d3.select(this).style("fill", "#abd9e9")
                     d3.select(`.attribution-score-histogram-bar-${bar_index}`).style("fill", "var(--blue3)")
                     return
                 }
@@ -673,22 +549,20 @@ function drawHistogram(counts) {
                         d3.select(`#negative-attributed-text-wrapper-${i}`)
                             .style("border", `3px solid var(--blue4)`)
                             .style("padding", `5.5px 10px`)
-                            // .style("background-color", "var(--blue2)")
                         histogramHighlightedTextWrapperElementIds.push(`negative-attributed-text-wrapper-${i}`)
                         flag = true
                     }
                 }
                 if (flag) {
-                    // d3.select(this).style("fill", "#fdae61b0")
                     d3.select(`.attribution-score-histogram-bar-${bar_index}`).style("fill", "var(--blue3)")
                     return
                 }
             })
             .on("mouseout", function(event) {
-                // d3.select(this).style("fill", fillColor)
                 let bar_index = +this.classList[1].split("-").pop()
                 svg.select(".attribution-score-histogram-hovered-text").text("")
                 d3.select(`.attribution-score-histogram-bar-${bar_index}`).style("fill", fillColor)
+
                 // revert the color of the corresponding text box
                 for (let i=0; i<histogramHighlightedTextWrapperElementIds.length; i++) {
                     let id = histogramHighlightedTextWrapperElementIds[i]
@@ -696,22 +570,14 @@ function drawHistogram(counts) {
                     d3.select(`#${id}`)
                         .style("border", `1px solid var(--blue${positive?4:3})`)
                         .style("padding", `7.5px 12px`)
-                        // .style("background-color", "")
                 }
                 histogramHighlightedTextWrapperElementIds = []
             })
-
-
-    // let attributedTextWrapperElement = document.getElementById(`${type}-attributed-text-wrapper-${i}`) --> it has corresponding bin number 
-
 }
 
 function resetAttributedDataSummary(posTfIdf, negTfIdf) {
-    // TODO: visualize TF-IDF data (when num_shown for pos is 3, we can use the data at [3])
-    // num_pos_shown, num_neg_shown
     summarizeAttributedData(posTfIdf, positive=true)
     summarizeAttributedData(negTfIdf, positive=false)
-    // adjustSidebarHeight()
 }
 
 function summarizeAttributedData(tfIdf, positive=true) {
@@ -743,7 +609,6 @@ function summarizeAttributedData(tfIdf, positive=true) {
                 let data = d3.select(this).data()[0]
                 d3.select(this)
                     .style("background-color", `var(--blue${positive?2:1})`)
-                    // .style("background-color", `var(--blue${positive?2:2})`)
                     .style("border", `2px solid var(--blue${positive?6:4})`)
                     .style("padding", "3px 6px")
                 for(let i=0; i<numShown; i++) {
@@ -751,7 +616,6 @@ function summarizeAttributedData(tfIdf, positive=true) {
                         d3.select(`#${type}-attributed-text-wrapper-${i}`)
                             .style("border", `3px solid var(--blue${positive?6:4})`)
                             .style("padding", `5.5px 10px`)
-                            // .style("background-color", `var(--blue${positive?3:2})`)
                     }
                 }
             })
@@ -763,7 +627,6 @@ function summarizeAttributedData(tfIdf, positive=true) {
                 d3.selectAll(`.${type}-attributed-text-wrapper`)
                     .style("border", `1px solid var(--blue${positive?4:3})`)
                     .style("padding", `7.5px 12px`)
-                    // .style("background-color", "")
             })
     d3.select(`.${type}-attribution-text-tf-idf`)
     .append("div")
@@ -792,16 +655,6 @@ function summarizeAttributedData(tfIdf, positive=true) {
 function adjustSidebarHeight() {
     let sidebarHeight = document.getElementsByClassName("sidebar")[0].getBoundingClientRect().height
     let attributionHeight = document.getElementsByClassName("attribution-result-wrapper")[0].getBoundingClientRect().height
-    console.log(sidebarHeight, attributionHeight)
     let height = Math.max(sidebarHeight, attributionHeight)
     document.getElementsByClassName("sidebar")[0].style.height = `${height}px`
-}
-
-function setIframeHeight(e) {
-    console.log(e)
-    console.log(iframeId)
-    console.log(document.getElementById(iframeId))
-    let iframeHeight = document.getElementById(iframeId).contentWindow.document.body.scrollHeight;
-    console.log(iframeHeight)
-    document.getElementById(iframeId).style.height = `${iframeHeight}px`
 }

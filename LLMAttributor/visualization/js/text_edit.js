@@ -54,39 +54,10 @@ document.addEventListener("mouseup", function(event) {
     if (document.getElementsByClassName("text-wrapper")[0].deleting) {
         document.getElementsByClassName("text-wrapper")[0].deleting = false;
         document.getElementsByClassName("text-wrapper")[0].deleteFromElement = null;
-        return;
-        if (event.target.classList.contains("word")) return;
-        
-        // Revert to the original delete status
-        let tokenList = document.getElementsByClassName("word")
-        for (let i=0; i<tokenList.length; i++) {
-            if (document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus[i]) tokenList[i].classList.add("deleted-word")
-            else tokenList[i].classList.remove("deleted-word")
-        }
-        document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus = null;
-
     }
     else if (document.getElementsByClassName("text-wrapper")[0].editDeleting) {
         document.getElementsByClassName("text-wrapper")[0].editDeleting = false;
         document.getElementsByClassName("text-wrapper")[0].editDeleteFromElement = null;
-        return;
-        if (event.target.classList.contains("word")) return;
-        let editDeleteFromElement = document.getElementsByClassName("text-wrapper")[0].editDeleteFromElement;
-
-        let tokenList = document.getElementsByClassName("word")
-        for (let i=0; i<tokenList.length; i++) {
-            if (document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus[i]) {
-                tokenList[i].classList.add("deleted-word")
-            }
-            else {
-                tokenList[i].classList.remove("deleted-word")
-                tokenList[i].classList.remove("edit-hovered-word")
-            }
-        }
-        document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus = null;
-
-        d3.selectAll(".word").classed("edit-hovered-word", false)
-        d3.selectAll(".word").classed("edit-left-adding-word", false)
     }
 })
 
@@ -121,119 +92,119 @@ d3.selectAll(".button")
     })
 
 function setWordEvents(){
-d3.selectAll(".word")
-    .on("mouseover", function(event) {
-        console.log(event)
-        if (document.getElementById("add-button").classList.contains("activated-button")) {
-            d3.select(this).classed("left-adding-word", true)
-        }
-        else if (document.getElementById("delete-button").classList.contains("activated-button")) {
-            if (document.getElementsByClassName("text-wrapper")[0].deleting) {
-                let startElement = document.getElementsByClassName("text-wrapper")[0].deleteFromElement;
-                let tokenList = document.getElementsByClassName("word")
-                let deleteCancelling = document.getElementsByClassName("text-wrapper")[0].deleteCancelling;
-                
-                deleteFlag = false;
-                let startLeftEndRight = false;
-                for (let i=0; i<tokenList.length; i++) {
-                    if (tokenList[i]==startElement && !deleteFlag) {
-                        startLeftEndRight = true;
-                        deleteFlag = true;
+    d3.selectAll(".word")
+        .on("mouseover", function(event) {
+            if (document.getElementById("add-button").classList.contains("activated-button")) {
+                d3.select(this).classed("left-adding-word", true)
+            }
+            else if (document.getElementById("delete-button").classList.contains("activated-button")) {
+                if (document.getElementsByClassName("text-wrapper")[0].deleting) {
+                    let startElement = document.getElementsByClassName("text-wrapper")[0].deleteFromElement;
+                    let tokenList = document.getElementsByClassName("word")
+                    let deleteCancelling = document.getElementsByClassName("text-wrapper")[0].deleteCancelling;
+                    
+                    deleteFlag = false;
+                    let startLeftEndRight = false;
+                    for (let i=0; i<tokenList.length; i++) {
+                        if (tokenList[i]==startElement && !deleteFlag) {
+                            startLeftEndRight = true;
+                            deleteFlag = true;
+                        }
+                        else if (tokenList[i]==this && !deleteFlag) {
+                            startLeftEndRight = false;
+                            deleteFlag = true;
+                        }
+
+                        tokenList[i].classList.remove("delete-hovered-word")
+                        if (deleteFlag && !deleteCancelling) tokenList[i].classList.add("deleted-word")
+                        else if (deleteFlag && deleteCancelling) tokenList[i].classList.remove("deleted-word")
+                        else if (document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus[i]) tokenList[i].classList.add("deleted-word")
+                        else tokenList[i].classList.remove("deleted-word")
+
+                        if (tokenList[i]==startElement && !startLeftEndRight) deleteFlag = false;
+                        if (tokenList[i]==this && startLeftEndRight) deleteFlag = false;
+
                     }
-                    else if (tokenList[i]==this && !deleteFlag) {
-                        startLeftEndRight = false;
-                        deleteFlag = true;
-                    }
-
-                    tokenList[i].classList.remove("delete-hovered-word")
-                    if (deleteFlag && !deleteCancelling) tokenList[i].classList.add("deleted-word")
-                    else if (deleteFlag && deleteCancelling) tokenList[i].classList.remove("deleted-word")
-                    else if (document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus[i]) tokenList[i].classList.add("deleted-word")
-                    else tokenList[i].classList.remove("deleted-word")
-
-                    if (tokenList[i]==startElement && !startLeftEndRight) deleteFlag = false;
-                    if (tokenList[i]==this && startLeftEndRight) deleteFlag = false;
-
                 }
+                this.classList.add("delete-hovered-word")
             }
-            this.classList.add("delete-hovered-word")
-        }
-        else if (document.getElementById("edit-button").classList.contains("activated-button")) {
-            if (this.classList.contains("deleted-word") && !this.classList.contains("edit-hovered-word")) return;
-            if (document.getElementsByClassName("text-wrapper")[0].editAdding) return;
-            if (document.getElementsByClassName("text-wrapper")[0].editDeleting) {
-                let startElement = document.getElementsByClassName("text-wrapper")[0].editDeleteFromElement;
-                if (startElement==this) return;
+            else if (document.getElementById("edit-button").classList.contains("activated-button")) {
+                if (this.classList.contains("deleted-word") && !this.classList.contains("edit-hovered-word")) return;
+                if (document.getElementsByClassName("text-wrapper")[0].editAdding) return;
+                if (document.getElementsByClassName("text-wrapper")[0].editDeleting) {
+                    let startElement = document.getElementsByClassName("text-wrapper")[0].editDeleteFromElement;
+                    if (startElement==this) return;
 
-                let tokenList = document.getElementsByClassName("word")
-                
-                deleteFlag = false;
-                let startLeftEndRight = false;
-                for (let i=0; i<tokenList.length; i++) {
-                    if (tokenList[i]==startElement && !deleteFlag) {
-                        startLeftEndRight = true;
-                        deleteFlag = true;
-                    }
-                    else if (tokenList[i]==this && !deleteFlag) {
-                        startLeftEndRight = false;
-                        deleteFlag = true;
-                    }
+                    let tokenList = document.getElementsByClassName("word")
+                    
+                    deleteFlag = false;
+                    let startLeftEndRight = false;
+                    for (let i=0; i<tokenList.length; i++) {
+                        if (tokenList[i]==startElement && !deleteFlag) {
+                            startLeftEndRight = true;
+                            deleteFlag = true;
+                        }
+                        else if (tokenList[i]==this && !deleteFlag) {
+                            startLeftEndRight = false;
+                            deleteFlag = true;
+                        }
 
-                    if (deleteFlag) {
-                        tokenList[i].classList.add("deleted-word")
-                        tokenList[i].classList.add("edit-hovered-word")
-                    }
-                    else if (document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus[i]) {
-                        tokenList[i].classList.add("deleted-word")
-                    }
-                    else {
-                        tokenList[i].classList.remove("deleted-word")
-                        tokenList[i].classList.remove("edit-hovered-word")
-                    }
+                        if (deleteFlag) {
+                            tokenList[i].classList.add("deleted-word")
+                            tokenList[i].classList.add("edit-hovered-word")
+                        }
+                        else if (document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus[i]) {
+                            tokenList[i].classList.add("deleted-word")
+                        }
+                        else {
+                            tokenList[i].classList.remove("deleted-word")
+                            tokenList[i].classList.remove("edit-hovered-word")
+                        }
 
-                    if (tokenList[i]==startElement && !startLeftEndRight) deleteFlag = false;
-                    if (tokenList[i]==this && startLeftEndRight) deleteFlag = false;
+                        if (tokenList[i]==startElement && !startLeftEndRight) deleteFlag = false;
+                        if (tokenList[i]==this && startLeftEndRight) deleteFlag = false;
+                    }
                 }
+                else {
+                    d3.select(this).classed("edit-left-adding-word", true)
+                }
+                this.classList.add("edit-hovered-word")
             }
-            else {
-                d3.select(this).classed("edit-left-adding-word", true)
+        }).on("mouseout", function(event) {
+            if (document.getElementsByClassName("text-wrapper")[0].adding && document.getElementsByClassName("text-wrapper")[0].addingElement==this) return;
+            if (document.getElementById("add-button").classList.contains("activated-button")) {
+                d3.select(this).classed("left-adding-word", false)
             }
-            this.classList.add("edit-hovered-word")
-        }
-    }).on("mouseout", function(event) {
-        if (document.getElementsByClassName("text-wrapper")[0].adding && document.getElementsByClassName("text-wrapper")[0].addingElement==this) return;
-        if (document.getElementById("add-button").classList.contains("activated-button")) {
-            d3.select(this).classed("left-adding-word", false)
-        }
-        else if (document.getElementById("delete-button").classList.contains("activated-button")) {
-            this.classList.remove("delete-hovered-word")
-        }
-        else if (document.getElementById("edit-button").classList.contains("activated-button")) {
-            if (this.classList.contains("deleted-word")) return;
-            if (document.getElementsByClassName("text-wrapper")[0].editDeleting) return;
-            if (document.getElementsByClassName("text-wrapper")[0].editAdding) return;
-            this.classList.remove("edit-hovered-word")
-            this.classList.remove("edit-left-adding-word")
-        }
-    }).on("mousedown", function(event) {
-        if (document.getElementsByClassName("text-wrapper")[0].adding) return;
-        if (document.getElementById("delete-button").classList.contains("activated-button")) delete_text_start(event,this);
-        else if (document.getElementById("edit-button").classList.contains("activated-button")) {
-            if (this.classList.contains("deleted-word")) return;
-            edit_text_start(event, this);
-        }
-    }).on("mouseup", function(event) {
-        if (document.getElementsByClassName("text-wrapper")[0].adding) return;
-        if (document.getElementById("delete-button").classList.contains("activated-button")) delete_text_done(event,this);
-        else if (document.getElementById("edit-button").classList.contains("activated-button")) {
-            if (this.classList.contains("deleted-word") && !this.classList.contains("edit-hovered-word")) return;
-            edit_text_delete_done(event, this);
-        }
-    }).on("click", function(event) {
-        if (document.getElementsByClassName("text-wrapper")[0].adding) return;
-        if (document.getElementById("add-button").classList.contains("activated-button")) add_text(event, this);
-    })
+            else if (document.getElementById("delete-button").classList.contains("activated-button")) {
+                this.classList.remove("delete-hovered-word")
+            }
+            else if (document.getElementById("edit-button").classList.contains("activated-button")) {
+                if (this.classList.contains("deleted-word")) return;
+                if (document.getElementsByClassName("text-wrapper")[0].editDeleting) return;
+                if (document.getElementsByClassName("text-wrapper")[0].editAdding) return;
+                this.classList.remove("edit-hovered-word")
+                this.classList.remove("edit-left-adding-word")
+            }
+        }).on("mousedown", function(event) {
+            if (document.getElementsByClassName("text-wrapper")[0].adding) return;
+            if (document.getElementById("delete-button").classList.contains("activated-button")) delete_text_start(event,this);
+            else if (document.getElementById("edit-button").classList.contains("activated-button")) {
+                if (this.classList.contains("deleted-word")) return;
+                edit_text_start(event, this);
+            }
+        }).on("mouseup", function(event) {
+            if (document.getElementsByClassName("text-wrapper")[0].adding) return;
+            if (document.getElementById("delete-button").classList.contains("activated-button")) delete_text_done(event,this);
+            else if (document.getElementById("edit-button").classList.contains("activated-button")) {
+                if (this.classList.contains("deleted-word") && !this.classList.contains("edit-hovered-word")) return;
+                edit_text_delete_done(event, this);
+            }
+        }).on("click", function(event) {
+            if (document.getElementsByClassName("text-wrapper")[0].adding) return;
+            if (document.getElementById("add-button").classList.contains("activated-button")) add_text(event, this);
+        })
 }
+
 setWordEvents();
 
 function add_text(event, clickedElement) {
@@ -345,7 +316,6 @@ function edit_text_delete_done(event, endElement) {
     document.getElementsByClassName("text-wrapper")[0].editDeleteFromElement = null;
     document.getElementsByClassName("text-wrapper")[0].prevDeleteStatus = null;
 
-    console.log("edit_text_delete_done -- change adding status")
     document.getElementsByClassName("text-wrapper")[0].editAdding = true;
     document.getElementsByClassName("text-wrapper")[0].adding = true;
     document.getElementsByClassName("text-wrapper")[0].addingElement = startElement;
@@ -356,7 +326,6 @@ function edit_text_delete_done(event, endElement) {
         .style("display", "block")
         .style("left", `${tokenRectLeft-8}px`)
         .style("top", `${tokenRectBottom+3}px`)
-    console.log("edit_text_delete_done - shown")
 }
 
 function submitAddedText() {
@@ -364,7 +333,6 @@ function submitAddedText() {
     document.getElementsByClassName("user-input")[0].value = "";
     let addedTextNum = document.getElementsByClassName("text-wrapper")[0].addedTextNum
     let addingElement = document.getElementsByClassName("text-wrapper")[0].addingElement;
-    console.log("submitAddedText", addingElement)
     
     let newNode = document.createElement("div");
     newNode.setAttribute("class", `word added-text added-text-${addedTextNum}`);

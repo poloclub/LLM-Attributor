@@ -68,7 +68,6 @@ body {
 }
 
 .generated-title {
-    /* color: var(--positive3); */
     color: #606060;
 }
 
@@ -225,7 +224,6 @@ body {
 }
 
 .attributed-text {
-    /* color: #606060; */
     line-height: 1.2em;
 }
 
@@ -270,8 +268,6 @@ body {
 }
 
 .token {
-    /* height: 16px;
-    line-height: 16px; */
     display: inline-block;
     user-select: none; 
     -webkit-user-drag: none; 
@@ -385,7 +381,6 @@ nobr:has(.first-in-line-token.left-space-token)::before {
 
 /* tf-idf */
 .attribution-text-tf-idf-wrapper {
-    /* margin-top: 30px; */
     padding-left: 3px;
     position: relative;
 }
@@ -445,7 +440,6 @@ nobr:has(.first-in-line-token.left-space-token)::before {
 }
 
 .generated-text .tokens-container .attended-token {
-    /* background-color: var(--positive1); */
     border-bottom: 3px solid #74add1a0;
     color: var(--positive4);
 }

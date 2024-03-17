@@ -82,8 +82,6 @@ class LLMAttributor:
         # set dataset 
         self.set_dataset(train_dataset, val_dataset, test_dataset, split_data_into_multiple_batches=split_data_into_multiple_batches)
 
-        # TBU: if a model directory/checkpoint have been specified, load the model
-
         # location of this project
         self.project_dir = os.path.dirname(__file__)
 
@@ -324,24 +322,6 @@ class LLMAttributor:
             print(f"Added new hash value for {hash_key}")
             return random_string
     
-    def set_attr_text(self, prompt=None, generated_text=None, attr_tokens_pos=None): 
-        self.prompt = prompt 
-        self.generated_text = generated_text 
-        device = "cuda" if self.device=="auto" else self.device
-        
-        prompt_ids = self._text_to_ids(prompt)
-        generated_ids = self._text_to_ids(generated_text)
-        self.prompt_ids = torch.LongTensor(prompt_ids).to(device).reshape(1,-1)
-        self.generated_ids = torch.LongTensor(generated_ids).to(device).reshape(1,-1)
-        self.prompt_token_num = self.prompt_ids.shape[1]
-
-        # self.scores = None 
-        if attr_tokens_pos is not None: attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(device)
-        else: 
-            self.select_tokens(prompt=prompt, generated_text=generated_text)
-            # attr_tokens_pos = torch.arange(self.generated_ids.shape[1]).to(self.device)
-        # self.hash_val = self.get_text_to_hash_val(self.prompt, self.generated_text, attr_tokens_pos)
-
     def _text_to_ids(self, text):
         return torch.LongTensor(self.tokenizer(text, return_tensors="pt")["input_ids"])[:,1:]
 
@@ -355,7 +335,6 @@ class LLMAttributor:
         if hasattr(self, "attr_tokens_pos") and self.attr_tokens_pos is not None and torch.equal(self.attr_tokens_pos, torch.LongTensor(attr_tokens_pos).to(device)): return
         self.attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(device)
         self.attr_grad = None
-        # self.scores = None
 
     def get_tokens_html_code(self, token_ids, attention_mask=None):
         if type(token_ids) in [np.array, torch.Tensor] and token_ids.ndim==2: token_ids = token_ids[0]
@@ -373,8 +352,6 @@ class LLMAttributor:
             class_name = "token attended-token" if attention_mask[i] == 1 else "token unattended-token"
             if token_decoded=="<0x0A>": 
                 class_name += " line-break-token"
-                # if nobr_closed : text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'>&#182</div><br>"
-                # else: text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'>&#182</div></nobr><br>"
                 if nobr_closed : text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'></div><br>"
                 else: text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'></div></nobr><br>"
                 nobr_closed = True
@@ -423,7 +400,6 @@ class LLMAttributor:
         else: generated_ids = torch.LongTensor(generated_ids).reshape(1,-1).to(device)
         prompt_token_num = prompt_ids.shape[1]
         generated_token_num = generated_ids.shape[1]
-        
         
         generated_mask = np.hstack([np.zeros([prompt_token_num]), np.ones([generated_token_num])])
         entire_text_ids = torch.cat([prompt_ids, generated_ids], dim=-1)
@@ -534,10 +510,6 @@ class LLMAttributor:
         prompt = self._ids_to_text(prompt_ids)
         generated_text = self._ids_to_text(gen_ids)
         attr_hash = self.get_text_to_hash_val(prompt, generated_text, attr_tokens_pos)
-        # if os.path.exists(os.path.join(self.attribution_score_dir, f"score_{attr_hash}.json")) and integrated:
-        #     with open(os.path.join(self.attribution_score_dir, f"score_{attr_hash}.json"), "r") as f: integrated_scores = json.load(f)
-        #     self.scores = np.array(integrated_scores)
-        #     return self.scores
 
         all_scores = dict()
         for ckpt_name in ckpt_names:
@@ -682,14 +654,6 @@ class LLMAttributor:
             if self.device not in ["auto", "cuda"]: torch.cuda.set_device(self.device)
 
     def get_topk_training_data(self, prompt_ids, gen_ids, attr_tokens_pos, k=3, return_scores=False, integration="mean", score_method="datainf", ckpt_num=-1):
-        # if (hasattr(self, "scores") and self.scores is not None): 
-        #     if type(self.scores) == dict:
-        #         if ckpt_num >= 0: scores = {ckpt: self.scores[ckpt] for ckpt in self.ckpt_names[-ckpt_num:]}
-        #         else: scores = self.scores
-        #         if integration=="mean": scores = np.mean(list(scores.values()), axis=0)
-        #         if integration=="median": scores = np.median(list(scores.values()), axis=0)
-        #     else: scores = self.scores
-        # else:
         if score_method=="datainf": scores = self.get_datainf_scores(prompt_ids, gen_ids, attr_tokens_pos, integrated=True, integration=integration, ckpt_num=ckpt_num)
         if score_method=="inner": scores = self.get_inner_scores(prompt_ids, gen_ids, attr_tokens_pos, integrated=True, integration=integration, ckpt_num=ckpt_num)
 
@@ -789,7 +753,6 @@ class LLMAttributor:
         N = 10
         topN_word_indices_for_each_topk_pos = np.argsort(-np.array(list(pos_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(pos_tf_idf.keys())
-        # topN_words_for_each_topk_pos = [[[word_indices[i], pos_tf_idf[word_indices[i]][j]] for i in topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
         topN_words_for_each_topk_pos = []
         for j in range(pos_max_num):
             topN_words_for_each_topk_pos.append([])
@@ -917,11 +880,10 @@ class LLMAttributor:
         base_html_code = base_html_code.replace("<!--down-icon-->", f"{open(os.path.join(vis_dir, 'icons/down.svg'), 'r').read()}")
 
         base_html_code = base_html_code.replace("<!--style-slot-->", css_code)
-        prompt_html_code = f"<div class='prompt'>{self.prompt}</div>"
+        prompt_html_code = f"<div class='prompt'>{prompt}</div>"
 
         generated_text_html_code, generated_text_html_container_id = self.get_tokens_html_code(generated_ids, deleted_flag_list)
         user_provided_text_html_code, user_provided_text_html_container_id = self.get_tokens_html_code(user_provided_ids, added_flag_list)
-        # generated_text_html_code = f"<div class='generated-text' id='{generated_text_html_container_id}'>{generated_text_html_code}</div>"
         generated_text_html_code = f"<div class='generated-text'>{generated_text_html_code}</div>"
         user_provided_text_html_code = f"<div class='user-provided-text'>{user_provided_text_html_code}</div>"
         base_html_code = base_html_code.replace("<!--prompt-slot-->", prompt_html_code)
@@ -937,7 +899,6 @@ class LLMAttributor:
         max_g_score_val = np.abs(g_scores).max()
         max_u_score_val = np.abs(u_scores).max()
         max_score_val = np.max([max_g_score_val, max_u_score_val])
-        # normalized_g_scores = g_scores / max_g_score_val
         normalized_g_scores = g_scores / max_score_val
         normalized_u_scores = u_scores / max_score_val
         g_scores = [float("{:.4f}".format(score)) for score in normalized_g_scores]
@@ -971,7 +932,6 @@ class LLMAttributor:
         N = 10
         g_topN_word_indices_for_each_topk_pos = np.argsort(-np.array(list(g_pos_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(g_pos_tf_idf.keys())
-        # g_topN_words_for_each_topk_pos = [[[word_indices[i], g_pos_tf_idf[word_indices[i]][j]] for i in g_topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
         g_topN_words_for_each_topk_pos = []
         for j in range(pos_max_num):
             g_topN_words_for_each_topk_pos.append([])
@@ -982,7 +942,6 @@ class LLMAttributor:
 
         g_topN_word_indices_for_each_topk_neg = np.argsort(-np.array(list(g_neg_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(g_neg_tf_idf.keys())
-        # g_topN_words_for_each_topk_neg = [[[word_indices[i], g_neg_tf_idf[word_indices[i]][j]] for i in g_topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
         g_topN_words_for_each_topk_neg = []
         for j in range(neg_max_num):
             g_topN_words_for_each_topk_neg.append([])
@@ -993,7 +952,6 @@ class LLMAttributor:
 
         u_topN_word_indices_for_each_topk_pos = np.argsort(-np.array(list(u_pos_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(u_pos_tf_idf.keys())
-        # u_topN_words_for_each_topk_pos = [[[word_indices[i], u_pos_tf_idf[word_indices[i]][j]] for i in u_topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
         u_topN_words_for_each_topk_pos = []
         for j in range(pos_max_num):
             u_topN_words_for_each_topk_pos.append([])
@@ -1004,7 +962,6 @@ class LLMAttributor:
 
         u_topN_word_indices_for_each_topk_neg = np.argsort(-np.array(list(u_neg_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(u_neg_tf_idf.keys())
-        # u_topN_words_for_each_topk_neg = [[[word_indices[i], u_neg_tf_idf[word_indices[i]][j]] for i in u_topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
         u_topN_words_for_each_topk_neg = []
         for j in range(neg_max_num):
             u_topN_words_for_each_topk_neg.append([])
@@ -1182,21 +1139,6 @@ class LLMAttributor:
             height="200px">
         """
         display_html(iframe, raw=True)
-        pass
-    
-    def visualize_comparison(self, pos_max_num=10, neg_max_num=10, integration="median", score_method="datainf"):
-        raise NotImplementedError
-    
-    
-
-    def auto_to_cuda(self):
-        self.origianl_device=self.device
-        if self.device=="auto": self.device="cuda:0"
-
-    def cuda_to_auto(self):
-        if hasattr(self, "original_device") and self.original_device is not None: self.device = self.original_device
-
-
 
 
 

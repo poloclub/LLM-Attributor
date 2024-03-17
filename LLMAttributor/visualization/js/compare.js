@@ -55,8 +55,6 @@ document.addEventListener("compare", function(event) {
     document.scrollingElement.style.scrollbarWidth = "thin"
 })
 
-// TODO: When clicked somewhere else or other box, collapse the expanded box
-
 function addAttributionNumDropdown(generated, positive) {
     let textType = generated ? "generated" : "user-provided"
     let positiveType = positive ? "positive" : "negative"
@@ -205,7 +203,6 @@ function displayAttribution(generated, positive) {
             .append("div")
                 .attr("class", `attributed-text ${textType}-${positiveType}-attributed-text`)
                 .attr("id", `${textType}-${positiveType}-attributed-text-${i}`)
-        // let attributedTextElement = document.getElementById(`${textType}-${positiveType}-attributed-text-${i}`)
         setCollapsedText(generated, positive, i, attribution[i]) 
 
         d3.select(`.${textType}-${positiveType}-attribution`)
@@ -217,10 +214,8 @@ function displayAttribution(generated, positive) {
 
                 let clickedAttributedTextElementId = d3.select(`#${clickedWrapperId}`).select(`.attributed-text`).attr("id")
                 let data = clickedWrapperElement.attributionData
-                // d3.select(`#${clickedWrapperId}`).html("")
                 d3.select(`#${clickedWrapperId}`).select(".attributed-text").remove()
 
-                // Expand: TODO
                 d3.select(`#${clickedWrapperId}`)
                     .append("div")
                     .attr("class", "expanded-attributed-text-wrapper")
@@ -229,21 +224,6 @@ function displayAttribution(generated, positive) {
                     .duration(1000)
                         .style("opacity", "1")
                     
-                // d3.select(`#${clickedWrapperId}`)
-                //     .select(".expanded-attributed-text-wrapper")
-                //     .append("div")
-                //         .attr("class", "expanded-attributed-text-title")
-                //         .text("Full Text")
-
-                // d3.select(`#${clickedWrapperId}`)
-                //     .select(".expanded-attributed-text-title")
-                //     .append("span")
-                //     .style("padding-left", "5px")
-                //     .style("font-size", "12px")
-                //     .style("font-weight", "100")
-                //     .style("color", "#a0a0a0")
-                //     .text("Only black is in the data; gray is added for context")
-
                 d3.select(`#${clickedWrapperId}`)
                     .select(".expanded-attributed-text-wrapper")
                     .append("div")
@@ -267,7 +247,6 @@ function displayAttribution(generated, positive) {
                         .select(`#expanded-attributed-text-contents-${key}`)
                             .append("span")
                             .attr("class", "expanded-attributed-text-contents-title")
-                            // .text(key=="score"?"Attribution score":key.charAt(0).toUpperCase() + key.slice(1).replace("_", " "))
                             .text(key.charAt(0).toUpperCase() + key.slice(1).replace("_", " "))
                     d3.select(`#${clickedWrapperId}`)
                         .select(`#expanded-attributed-text-contents-${key}`)
@@ -323,9 +302,6 @@ function displayAttribution(generated, positive) {
                 expandedAttributedTextWrapperElementId = clickedWrapperId;
                 expandedAttributedTextElementId = clickedAttributedTextElementId;
 
-                setTimeout(function() {
-                    // TODO: change height of iframe?
-                }, 1000)
             })
             .on("mouseover", function(event) {
                 let targetId = this.id 
@@ -354,7 +330,6 @@ function setCollapsedText (generated, positive, i, attribution) {
     d3.select(`#${textType}-${positiveType}-attributed-text-info-wrapper-${i}`)
         .append("span")
             .attr("class", `attributed-text-info attributed-text-info-score ${textType}-${positiveType}-attributed-text-info`)
-            // .text((i==0)&&(positive)?`Score: ${attribution["score"].toFixed(4)}`:attribution["score"].toFixed(4))
             .text(`Score: ${attribution["score"].toFixed(4)}`)
 
     let word_list = text.split(" ")
@@ -446,7 +421,6 @@ function displayTFIDF (generated, positive) {
         .html("")
         .style("margin-top", "")
         .style("width", `calc(100% - 5px - ${(+d3.select(".attribution-text-tf-idf-title-wrapper").style("width").slice(0,-2))}px)`)
-        // .style("background-color", "#f5f5f5")
         .style("float", "right")
         .style("white-space", "nowrap")
         .style("scrollbar-width", "none")
@@ -481,7 +455,6 @@ function displayTFIDF (generated, positive) {
                 if (generated) {
                     d3.select(this)
                         .style("background-color", `var(--${color}${positive?2:1})`)
-                        // .style("background-color", `var(--${color}${positive?3:2})`)
                         .style("border", `2px solid var(--${color}${positive?6:4})`)
                         .style("padding", "1.5px 3.5px")
                 }
@@ -497,13 +470,11 @@ function displayTFIDF (generated, positive) {
                             d3.select(`#${textType}-${positiveType}-attributed-text-wrapper-${i}`)
                                 .style("border", `3px solid var(--${color}${positive?6:4})`)
                                 .style("padding", `5.5px 10px`)
-                                // .style("background-color", `var(--${color}${positive?3:2})`)
                         }
                         else {
                             d3.select(`#${textType}-${positiveType}-attributed-text-wrapper-${i}`)
                                 .style("border", `3px solid var(--${color}${positive?5:4})`)
                                 .style("padding", `5.5px 10px`)
-                                // .style("background-color", `var(--${color}${positive?2:1})`)
                         }
                     }
                 }
@@ -516,7 +487,6 @@ function displayTFIDF (generated, positive) {
                 d3.selectAll(`.${textType}-${positiveType}-attributed-text-wrapper`)
                     .style("border", `1px solid var(--${color}${positive?4:3})`)
                     .style("padding", `7.5px 12px`)
-                    // .style("background-color", `var(--${color}${positive?1:0})`)
             })
     d3.select(`.${textType}-${positiveType}-attribution-text-tf-idf`)
         .append("div")
@@ -524,7 +494,6 @@ function displayTFIDF (generated, positive) {
         .style("width", "25px")
         .style("display", "inline-block")
 
-    // d3.select(`.${textType}-${positiveType}-attribution-text-tf-idf`)
     d3.select(`.${textType}-${positiveType}-attribution-text-tf-idf-wrapper`)
         .append("div")
         .attr("class", `attribution-text-tf-idf-gradient`)
@@ -557,7 +526,6 @@ function drawHistogram() {
     let height = 110 - margin.top - margin.bottom;
     let labelTextHeight = 10;
 
-    // let lineColor = "#d0d0d0";
     let lineColor = "#ffffff";
 
     let svg = d3.select(".attribution-score-histogram").append("svg")
@@ -686,7 +654,6 @@ function drawHistogram() {
                     d3.select(`#generated-positive-attributed-text-wrapper-${i}`)
                         .style("border", `3px solid var(--blue6)`)
                         .style("padding", `5.5px 10px`)
-                        // .style("background-color", "var(--blue3)")
                     histogramHighlightedTextWrapperElementIds.push(`generated-positive-attributed-text-wrapper-${i}`)
                 }
             }
@@ -698,7 +665,6 @@ function drawHistogram() {
                     d3.select(`#generated-negative-attributed-text-wrapper-${i}`)
                         .style("border", `3px solid var(--blue4)`)
                         .style("padding", `5.5px 10px`)
-                        // .style("background-color", "var(--blue3)")
                     histogramHighlightedTextWrapperElementIds.push(`generated-negative-attributed-text-wrapper-${i}`)
                 }
             }
@@ -713,7 +679,6 @@ function drawHistogram() {
                 d3.select(`#${histogramHighlightedTextWrapperElementIds[i]}`)
                     .style("border", `1px solid var(--blue${positive?4:3})`)
                     .style("padding", `7.5px 12px`)
-                    // .style("background-color", color)
             }
             histogramHighlightedTextWrapperElementIds = []
         })
@@ -753,7 +718,6 @@ function drawHistogram() {
                     d3.select(`#user-provided-positive-attributed-text-wrapper-${i}`)
                         .style("border", `3px solid var(--red5)`)
                         .style("padding", `5.5px 10px`)
-                        // .style("background-color", "var(--red2)")
                     histogramHighlightedTextWrapperElementIds.push(`user-provided-positive-attributed-text-wrapper-${i}`)
                 }
             }
@@ -765,7 +729,6 @@ function drawHistogram() {
                     d3.select(`#user-provided-negative-attributed-text-wrapper-${i}`)
                         .style("border", `3px solid var(--red4)`)
                         .style("padding", `5.5px 10px`)
-                        // .style("background-color", "var(--red2)")
                     histogramHighlightedTextWrapperElementIds.push(`user-provided-negative-attributed-text-wrapper-${i}`)
                 }
             }
@@ -781,30 +744,8 @@ function drawHistogram() {
                 d3.select(`#${histogramHighlightedTextWrapperElementIds[i]}`)
                     .style("border", `1px solid var(--red${positive?4:3})`)
                     .style("padding", `7.5px 12px`)
-                    // .style("background-color", color)
             }
             histogramHighlightedTextWrapperElementIds = []
         })
 }
 
-// function resizeIFrameToFitContent() {
-//     console.log(iframeId)
-//     var iFrame = document.getElementById(iframeId);
-//     console.log(iFrame)
-//     iFrame.width  = iFrame.contentWindow.document.body.scrollWidth;
-//     iFrame.height = iFrame.contentWindow.document.body.scrollHeight;
-// }
-
-// if (document.readyState == "loading"){
-//     document.addEventListener('DOMContentLoaded', resizeIFrameToFitContent)
-//         // or, to resize all iframes:
-//         // var iframes = document.querySelectorAll("iframe");
-//         // for( var i = 0; i < iframes.length; i++) {
-//         //     resizeIFrameToFitContent( iframes[i] );
-//         // }
-// }
-// else {
-//     resizeIFrameToFitContent();
-// }
-
-// window.onload = resizeIFrameToFitContent;
