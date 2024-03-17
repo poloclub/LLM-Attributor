@@ -443,7 +443,7 @@ class LLMAttributor:
         <iframe 
             srcdoc="{html.escape(html_msg_js_code)}" 
             frameBorder="0" 
-            height="1000px"
+            height="300px"
             width="100%">
         """
         display_html(iframe, raw=True)
