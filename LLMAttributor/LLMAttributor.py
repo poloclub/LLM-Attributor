@@ -52,6 +52,7 @@ class LLMAttributor:
         if not os.path.exists(self.model_save_dir): os.makedirs(self.model_save_dir)
         elif self.ckpt_names is None:
             self.ckpt_names = [f for f in os.listdir(self.model_save_dir) if f.startswith(ckpt_prefix) and f[len(ckpt_prefix):].isdigit()]
+            if len(self.ckpt_names)==0: self.ckpt_names = [f for f in os.listdir(os.path.join(self.model_save_dir, "attribution_score")) if f.startswith(ckpt_prefix) and f[len(ckpt_prefix):].isdigit()]
             self.ckpt_names = sorted(self.ckpt_names, key=lambda x: int(x[len(ckpt_prefix):]))
             if len(self.ckpt_names) == 0: self.ckpt_names = None
 
