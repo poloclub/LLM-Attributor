@@ -9,3 +9,4 @@ data/squad_custom_extension
 
 LLMAttributor/dist
 *.egg-info
+datagen/
