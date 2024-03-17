@@ -247,10 +247,11 @@ class LLMAttributor:
         # if eval_prompt is None, should input eval_i and compare the result with the groundtruth
         # if eval_prompt is given, generate with the input prompt
         self.model.eval()
+        device = "cuda" if self.device=="auto" else self.device
         if eval_prompt is None and self.val_dataset is not None: eval_prompt = self.val_dataset[eval_i]['text']
         elif eval_prompt is None and self.test_dataset is not None: eval_prompt = self.test_dataset[eval_i]['text']
         elif eval_prompt is None: eval_prompt = self.train_dataset[eval_i]['text']
-        model_input = self.tokenizer(eval_prompt, return_tensors='pt').to(self.device)
+        model_input = self.tokenizer(eval_prompt, return_tensors='pt').to(device)
 
         with torch.no_grad():
             output = self.model.generate(**model_input, max_new_tokens=100)[0]
@@ -259,7 +260,7 @@ class LLMAttributor:
         
         if eval_prompt is None: print("Groundtruth:", self.val_dataset[eval_i]['answer'])
 
-    def finetune(self, config=None, overwrite=False, bf16=False, logging_strategy="steps", logging_steps=10, save_strategy="epoch", optim="adamw_torch_fused", max_steps=-1, learning_rate=1e-4, num_train_epochs=5, gradient_accumulation_steps=2, per_device_train_batch_size=2, gradient_checkpointing=False):
+    def finetune(self, config=None, overwrite=False, bf16=False, logging_strategy="steps", logging_steps=10, save_strategy="epoch", save_steps=50, optim="adamw_torch_fused", max_steps=-1, learning_rate=1e-4, num_train_epochs=5, gradient_accumulation_steps=2, per_device_train_batch_size=2, gradient_checkpointing=False):
         if not hasattr(self, "model") or self.model is None: self.set_model(pretrained=False)
         if config is None and self.train_config is not None: config = self.train_config
         else:
@@ -276,6 +277,7 @@ class LLMAttributor:
                 logging_strategy=logging_strategy,
                 logging_steps=logging_steps,
                 save_strategy=save_strategy,
+                save_steps=save_steps,
                 optim=optim,
                 max_steps=max_steps)
         
@@ -294,7 +296,8 @@ class LLMAttributor:
         self.ckpt_names = [f for f in os.listdir(self.loaded_model_dir) if f.startswith(ckpt_prefix) and f[len(ckpt_prefix):].isdigit()]
 
     def generate(self, prompt=None, max_new_tokens=1000, return_decoded=True):
-        model_input = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        device = "cuda" if self.device=="auto" else self.device
+        model_input = self.tokenizer(prompt, return_tensors="pt").to(device)
         if self.model==None: self.set_model(pretrained=True, pretrained_dir=self.model_save_dir)
         output = self.model.generate(**model_input, max_new_tokens=max_new_tokens, pad_token_id=self.tokenizer.pad_token_id)[0]
         prompt_len = model_input["input_ids"].shape[1]
@@ -324,15 +327,16 @@ class LLMAttributor:
     def set_attr_text(self, prompt=None, generated_text=None, attr_tokens_pos=None): 
         self.prompt = prompt 
         self.generated_text = generated_text 
+        device = "cuda" if self.device=="auto" else self.device
         
         prompt_ids = self._text_to_ids(prompt)
         generated_ids = self._text_to_ids(generated_text)
-        self.prompt_ids = torch.LongTensor(prompt_ids).to(self.device).reshape(1,-1)
-        self.generated_ids = torch.LongTensor(generated_ids).to(self.device).reshape(1,-1)
+        self.prompt_ids = torch.LongTensor(prompt_ids).to(device).reshape(1,-1)
+        self.generated_ids = torch.LongTensor(generated_ids).to(device).reshape(1,-1)
         self.prompt_token_num = self.prompt_ids.shape[1]
 
         # self.scores = None 
-        if attr_tokens_pos is not None: attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(self.device)
+        if attr_tokens_pos is not None: attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(device)
         else: 
             self.select_tokens(prompt=prompt, generated_text=generated_text)
             # attr_tokens_pos = torch.arange(self.generated_ids.shape[1]).to(self.device)
@@ -347,8 +351,9 @@ class LLMAttributor:
         return self.tokenizer.decode(tokens, skip_special_tokens=True)
 
     def set_attr_tokens_pos(self, attr_tokens_pos):
-        if hasattr(self, "attr_tokens_pos") and self.attr_tokens_pos is not None and torch.equal(self.attr_tokens_pos, torch.LongTensor(attr_tokens_pos).to(self.device)): return
-        self.attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(self.device)
+        device = "cuda" if self.device=="auto" else self.device
+        if hasattr(self, "attr_tokens_pos") and self.attr_tokens_pos is not None and torch.equal(self.attr_tokens_pos, torch.LongTensor(attr_tokens_pos).to(device)): return
+        self.attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(device)
         self.attr_grad = None
         # self.scores = None
 
@@ -368,8 +373,10 @@ class LLMAttributor:
             class_name = "token attended-token" if attention_mask[i] == 1 else "token unattended-token"
             if token_decoded=="<0x0A>": 
                 class_name += " line-break-token"
-                if nobr_closed : text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'>&#182</div><br>"
-                else: text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'>&#182</div></nobr><br>"
+                # if nobr_closed : text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'>&#182</div><br>"
+                # else: text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'>&#182</div></nobr><br>"
+                if nobr_closed : text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'></div><br>"
+                else: text_html_code += f"<div class='{class_name}' id='token-{random_int}-{i}'></div></nobr><br>"
                 nobr_closed = True
                 continue
 
@@ -377,6 +384,7 @@ class LLMAttributor:
             if ">" in token_decoded: token_decoded = token_decoded.replace(">", "&gt;")
 
             if "▁" == token_decoded:
+                if i == 0: continue
                 class_name += " space-token"
                 token_decoded = "&nbsp;"
                 html_code = f"<div class='{class_name}' id='token-{random_int}-{i}'>{token_decoded}</div>"
@@ -403,15 +411,16 @@ class LLMAttributor:
 
         return text_html_code, random_id 
 
-    def select_tokens(self, prompt=None, prompt_ids=None, generated_text=None, generated_ids=None):
+    def select_tokens(self, prompt=None, generated_text=None, prompt_ids=None, generated_ids=None):
         assert prompt is not None or prompt_ids is not None
         assert generated_text is not None or generated_ids is not None
+        device = "cuda" if self.device=="auto" else self.device
         
         if prompt_ids is None: prompt_ids = self._text_to_ids(prompt)
-        else: prompt_ids = torch.LongTensor(prompt_ids).reshape(1,-1).to(self.device)
+        else: prompt_ids = torch.LongTensor(prompt_ids).reshape(1,-1).to(device)
         if prompt is None: prompt = self._ids_to_text(prompt_ids)
         if generated_ids is None: generated_ids = self._text_to_ids(generated_text)
-        else: generated_ids = torch.LongTensor(generated_ids).reshape(1,-1).to(self.device)
+        else: generated_ids = torch.LongTensor(generated_ids).reshape(1,-1).to(device)
         prompt_token_num = prompt_ids.shape[1]
         generated_token_num = generated_ids.shape[1]
         
@@ -425,7 +434,7 @@ class LLMAttributor:
 
         html_code = html_code.replace("<!--tokens-slot-->", text_html_code)
 
-        css_code_filename = os.path.join(self.project_dir, "visualization/css/styles.css")
+        css_code_filename = os.path.join(self.project_dir, "visualization/css/select.css")
         css_code = "<style>" + open(css_code_filename, "r").read() + "</style>"
         html_code = html_code.replace("<!--style-slot-->", css_code)
         
@@ -458,13 +467,15 @@ class LLMAttributor:
         <iframe 
             srcdoc="{html.escape(html_msg_js_code)}" 
             frameBorder="0" 
+            height="1000px"
             width="100%">
         """
         display_html(iframe, raw=True)
 
     def get_attr_grad(self, prompt_ids, gen_ids, attr_tokens_pos):
+        device = "cuda" if self.device=="auto" else self.device
         entire_text_ids = torch.cat([prompt_ids, gen_ids], dim=-1)
-        attr_attention_mask = torch.ones_like(entire_text_ids).to(self.device)
+        attr_attention_mask = torch.ones_like(entire_text_ids).to(device)
         prompt_token_num = prompt_ids.shape[1]
         
         logsoftmax = nn.LogSoftmax(dim=-1)
@@ -483,6 +494,8 @@ class LLMAttributor:
         if ckpt_names is not None: ckpt_names = ckpt_names
         elif ckpt_name is not None: ckpt_names = [ckpt_name] 
         else: ckpt_names = self.ckpt_names
+
+        device = "cuda" if self.device=="auto" else self.device
         
         # save gradient values for the model parameters for each training data for each checkpointed model
         for ckpt in ckpt_names:
@@ -504,9 +517,9 @@ class LLMAttributor:
             
             for i, data in enumerate(tqdm(self.train_dataset)):
                 # get the Delta_theta when we update the model with "data"
-                input_ids = torch.LongTensor(data["input_ids"]).unsqueeze(0).to(self.device)
-                attention_mask = torch.LongTensor(data["attention_mask"]).unsqueeze(0).to(self.device)
-                labels = torch.LongTensor(data["labels"]).unsqueeze(0).to(self.device)
+                input_ids = torch.LongTensor(data["input_ids"]).unsqueeze(0).to(device)
+                attention_mask = torch.LongTensor(data["attention_mask"]).unsqueeze(0).to(device)
+                labels = torch.LongTensor(data["labels"]).unsqueeze(0).to(device)
                 out = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                 loss = out.loss
                 grad_loss = torch.autograd.grad(loss, [param for param in self.model.parameters() if param.requires_grad])
@@ -690,12 +703,16 @@ class LLMAttributor:
     def tf_idf_topk_training_data(self, k, topk_data_text):
         # get TF from the topk training data
         tf_dict = dict()
+        word_to_data_idx = dict()
         for data_i, text in enumerate(topk_data_text):
             for paragraph in text.split("\n"):
                 for word in paragraph.split(" "):
-                    word = word.strip(".,?!:;`'\"()[]\{\}<>-_=+*^&%$#@~|\\/\n\t\r\v\f").lower()
+                    word = word.strip(".,?!:;`'\"“”()[]\{\}<>-_=+*^&%$#@~|\\/\n\t\r\v\f").lower()
                     if word in tf_dict: tf_dict[word][data_i:] += 1
                     else: tf_dict[word] = np.array([0] * data_i + [1] * (k - data_i))
+                    
+                    if word not in word_to_data_idx: word_to_data_idx[word] = [data_i]
+                    elif data_i not in word_to_data_idx[word]: word_to_data_idx[word].append(data_i)
 
         # get IDF based on the entire training data
         idf_dict = {word: 0 for word in tf_dict.keys()}
@@ -710,28 +727,29 @@ class LLMAttributor:
 
         # get TF-IDF
         tfidf_dict = {word: tf_dict[word] * idf_dict[word] for word in tf_dict.keys()}
-        return tfidf_dict
+        return tfidf_dict, word_to_data_idx
         
-    def visualize_attribution(self, prompt=None, prompt_ids=None, generated_text=None, generated_ids=None, attr_tokens_pos=None, pos_max_num=10, neg_max_num=10, integration="median", score_method="datainf", ckpt_names=None, ckpt_num=-1):
+    def attribute(self, prompt=None, generated_text=None, attr_tokens_pos=None, prompt_ids=None, generated_ids=None, pos_max_num=10, neg_max_num=10, integration="median", score_method="datainf", ckpt_names=None, ckpt_num=-1):
         assert prompt is not None or prompt_ids is not None
         assert generated_text is not None or generated_ids is not None
         
-        if prompt_ids is None: prompt_ids = self._text_to_ids(prompt).to(self.device)
-        else: prompt_ids = torch.LongTensor(prompt_ids).to(self.device)
+        device="cuda" if self.device=="auto" else self.device
+        if prompt_ids is None: prompt_ids = self._text_to_ids(prompt).to(device)
+        else: prompt_ids = torch.LongTensor(prompt_ids).to(device)
         if prompt is None: prompt = self._ids_to_text(prompt_ids)
         
-        if generated_ids is None: generated_ids = self._text_to_ids(generated_text).to(self.device)
+        if generated_ids is None: generated_ids = self._text_to_ids(generated_text).to(device)
         
-        if attr_tokens_pos is None: attr_tokens_pos = torch.arange(generated_ids.shape[1]).long().to(self.device)
-        else: attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(self.device)
+        if attr_tokens_pos is None: attr_tokens_pos = torch.arange(generated_ids.shape[1]).long().to(device)
+        else: attr_tokens_pos = torch.LongTensor(attr_tokens_pos).to(device)
         
         vis_dir = os.path.join(self.project_dir, "visualization")
 
         base_html_code = open(os.path.join(vis_dir, "html/attribution.html"), "r").read()
         css_code = f"<style>{open(os.path.join(vis_dir, 'css/attribution.css'), 'r').read()}</style>"
 
-        base_html_code = base_html_code.replace("<!--bird-in-hat-icon-->", f"{open(os.path.join(vis_dir, 'icons/bird-in-hat.svg'), 'r').read()}")
-        base_html_code = base_html_code.replace("<!--up-icon-->", f"{open(os.path.join(vis_dir, 'icons/up.svg'), 'r').read()}")
+        base_html_code = base_html_code.replace("<!--robot-icon-->", f"{open(os.path.join(vis_dir, 'icons/robot.svg'), 'r').read()}")
+        base_html_code = base_html_code.replace("<!--up-solid-icon-->", f"{open(os.path.join(vis_dir, 'icons/up-solid.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--down-icon-->", f"{open(os.path.join(vis_dir, 'icons/down.svg'), 'r').read()}")
 
         styled_html_code = base_html_code.replace("<!--style-slot-->", css_code)
@@ -764,20 +782,37 @@ class LLMAttributor:
         scoreHistogramCounts = [[bins[i], bins[i+1], counts[i]] for i in range(len(counts))]
 
         # tf-idf
-        pos_tf_idf = self.tf_idf_topk_training_data(pos_max_num, [d["text"] for d in positive_attribution])
-        neg_tf_idf = self.tf_idf_topk_training_data(neg_max_num, [d["text"] for d in negative_attribution])
+        pos_tf_idf, pos_word_to_data_idx = self.tf_idf_topk_training_data(pos_max_num, [d["text"] for d in positive_attribution])
+        neg_tf_idf, neg_word_to_data_idx = self.tf_idf_topk_training_data(neg_max_num, [d["text"] for d in negative_attribution])
         
         # sort TF-IDF
         N = 10
         topN_word_indices_for_each_topk_pos = np.argsort(-np.array(list(pos_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(pos_tf_idf.keys())
-        topN_words_for_each_topk_pos = [[[word_indices[i], pos_tf_idf[word_indices[i]][j]] for i in topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
+        # topN_words_for_each_topk_pos = [[[word_indices[i], pos_tf_idf[word_indices[i]][j]] for i in topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
+        topN_words_for_each_topk_pos = []
+        for j in range(pos_max_num):
+            topN_words_for_each_topk_pos.append([])
+            for i in topN_word_indices_for_each_topk_pos[j]:
+                data_idx = np.array(pos_word_to_data_idx[word_indices[i]])
+                data_idx = data_idx[np.where(data_idx <= j)[0]].tolist()
+                topN_words_for_each_topk_pos[j].append([word_indices[i], pos_tf_idf[word_indices[i]][j], data_idx])
+        
 
         topN_word_indices_for_each_topk_neg = np.argsort(-np.array(list(neg_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(neg_tf_idf.keys())
         topN_words_for_each_topk_neg = [[[word_indices[i], neg_tf_idf[word_indices[i]][j]] for i in topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
+        topN_words_for_each_topk_neg = []
+        for j in range(neg_max_num):
+            topN_words_for_each_topk_neg.append([])
+            for i in topN_word_indices_for_each_topk_neg[j]:
+                data_idx = np.array(neg_word_to_data_idx[word_indices[i]])
+                data_idx = data_idx[np.where(data_idx <= j)[0]].tolist()
+                topN_words_for_each_topk_neg[j].append([word_indices[i], neg_tf_idf[word_indices[i]][j], data_idx])
+        
 
         # send all the positively/negatively attributed data and their scores through message
+        iframe_id = f"iframe-{random.randint(0, 1000000)}"
         message_js = f"""
         (function() {{
             const event = new Event('attribute');
@@ -789,6 +824,7 @@ class LLMAttributor:
             event.negTfIdf = {topN_words_for_each_topk_neg};
             event.scoreHistogramCounts = {list(scoreHistogramCounts)};
             event.scoreHistogramBins = {list(bins)};
+            event.iframeId = "{iframe_id}";
             document.dispatchEvent(event);
         }}())
         """
@@ -804,9 +840,11 @@ class LLMAttributor:
         html_msg_js_code = html_msg_code.replace("<!--js-slot-->", f"""<script data-notebookMode="true" data-package="{__name__}" src='data:text/javascript;base64,{js_base64}'></script>""")
 
         iframe = f"""
-        <iframe 
+        <iframe
             srcdoc="{html.escape(html_msg_js_code)}" 
+            id="{iframe_id}"
             frameBorder="0" 
+            scrolling="auto"
             width="100%"
             height="1000px">
         </iframe>"""
@@ -814,6 +852,8 @@ class LLMAttributor:
 
     def compare(self, prompt, edit_code=None, generated_text=None, user_provided_text=None, pos_max_num=10, neg_max_num=10, integration="median", score_method="datainf"):
         # user_provided can be given as either of text or html code
+        device = "cuda" if self.device=="auto" else self.device
+
         if edit_code is not None and edit_code.startswith("<div>"): pass
         else:
             assert generated_text is not None
@@ -861,9 +901,9 @@ class LLMAttributor:
                 deleted_flag_list = np.hstack([deleted_flag_list, [False]*len(eq_ids)])
                 added_flag_list = np.hstack([added_flag_list, [False]*len(eq_ids)])
 
-        generated_ids = torch.LongTensor(generated_ids_list).unsqueeze(0).to(self.device)
-        user_provided_ids = torch.LongTensor(user_provided_ids_list).unsqueeze(0).to(self.device)
-        prompt_ids = self._text_to_ids(prompt).to(self.device)
+        generated_ids = torch.LongTensor(generated_ids_list).unsqueeze(0).to(device)
+        user_provided_ids = torch.LongTensor(user_provided_ids_list).unsqueeze(0).to(device)
+        prompt_ids = self._text_to_ids(prompt).to(device)
 
         # start visualization
         vis_dir = os.path.join(self.project_dir, "visualization")
@@ -871,7 +911,8 @@ class LLMAttributor:
         base_html_code = open(os.path.join(vis_dir, "html/compare.html"), "r").read()
         css_code = f"<style>{open(os.path.join(vis_dir, 'css/compare.css'), 'r').read()}</style>"
 
-        base_html_code = base_html_code.replace("<!--bird-in-hat-icon-->", f"{open(os.path.join(vis_dir, 'icons/bird-in-hat.svg'), 'r').read()}")
+        base_html_code = base_html_code.replace("<!--robot-icon-->", f"{open(os.path.join(vis_dir, 'icons/robot.svg'), 'r').read()}")
+        base_html_code = base_html_code.replace("<!--user-icon-->", f"{open(os.path.join(vis_dir, 'icons/user.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--up-solid-icon-->", f"{open(os.path.join(vis_dir, 'icons/up-solid.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--down-icon-->", f"{open(os.path.join(vis_dir, 'icons/down.svg'), 'r').read()}")
 
@@ -880,8 +921,9 @@ class LLMAttributor:
 
         generated_text_html_code, generated_text_html_container_id = self.get_tokens_html_code(generated_ids, deleted_flag_list)
         user_provided_text_html_code, user_provided_text_html_container_id = self.get_tokens_html_code(user_provided_ids, added_flag_list)
-        generated_text_html_code = f"<div class='generated-text' id='{generated_text_html_container_id}'>{generated_text_html_code}</div>"
-        user_provided_text_html_code = f"<div class='user-provided-text' id='{user_provided_text_html_container_id}'>{user_provided_text_html_code}</div>"
+        # generated_text_html_code = f"<div class='generated-text' id='{generated_text_html_container_id}'>{generated_text_html_code}</div>"
+        generated_text_html_code = f"<div class='generated-text'>{generated_text_html_code}</div>"
+        user_provided_text_html_code = f"<div class='user-provided-text'>{user_provided_text_html_code}</div>"
         base_html_code = base_html_code.replace("<!--prompt-slot-->", prompt_html_code)
         base_html_code = base_html_code.replace("<!--generated-text-slot-->", generated_text_html_code)
         base_html_code = base_html_code.replace("<!--user-provided-text-slot-->", user_provided_text_html_code)
@@ -893,11 +935,12 @@ class LLMAttributor:
         u_indices, u_data, u_scores = self.get_topk_training_data(prompt_ids, user_provided_ids, user_attr_tokens_pos, k=len(self.train_dataset), return_scores=True, integration=integration, score_method=score_method)
 
         max_g_score_val = np.abs(g_scores).max()
-        normalized_g_scores = g_scores / max_g_score_val
-        g_scores = [float("{:.4f}".format(score)) for score in normalized_g_scores]
-
         max_u_score_val = np.abs(u_scores).max()
-        normalized_u_scores = u_scores / max_u_score_val
+        max_score_val = np.max([max_g_score_val, max_u_score_val])
+        # normalized_g_scores = g_scores / max_g_score_val
+        normalized_g_scores = g_scores / max_score_val
+        normalized_u_scores = u_scores / max_score_val
+        g_scores = [float("{:.4f}".format(score)) for score in normalized_g_scores]
         u_scores = [float("{:.4f}".format(score)) for score in normalized_u_scores]
 
         # split train_idx, train_data, topk_scores into positive and negative
@@ -919,30 +962,59 @@ class LLMAttributor:
         u_scoreHistogramCounts = [[u_bins[i], u_bins[i+1], u_counts[i]] for i in range(len(u_counts))]
 
         # tf-idf
-        g_pos_tf_idf = self.tf_idf_topk_training_data(pos_max_num, [d["text"] for d in g_positive_attribution])
-        g_neg_tf_idf = self.tf_idf_topk_training_data(neg_max_num, [d["text"] for d in g_negative_attribution])
-        u_pos_tf_idf = self.tf_idf_topk_training_data(pos_max_num, [d["text"] for d in u_positive_attribution])
-        u_neg_tf_idf = self.tf_idf_topk_training_data(neg_max_num, [d["text"] for d in u_negative_attribution])
+        g_pos_tf_idf, g_pos_word_to_data_idx = self.tf_idf_topk_training_data(pos_max_num, [d["text"] for d in g_positive_attribution])
+        g_neg_tf_idf, g_neg_word_to_data_idx = self.tf_idf_topk_training_data(neg_max_num, [d["text"] for d in g_negative_attribution])
+        u_pos_tf_idf, u_pos_word_to_data_idx = self.tf_idf_topk_training_data(pos_max_num, [d["text"] for d in u_positive_attribution])
+        u_neg_tf_idf, u_neg_word_to_data_idx = self.tf_idf_topk_training_data(neg_max_num, [d["text"] for d in u_negative_attribution])
 
         # sort TF-IDF
         N = 10
         g_topN_word_indices_for_each_topk_pos = np.argsort(-np.array(list(g_pos_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(g_pos_tf_idf.keys())
-        g_topN_words_for_each_topk_pos = [[[word_indices[i], g_pos_tf_idf[word_indices[i]][j]] for i in g_topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
+        # g_topN_words_for_each_topk_pos = [[[word_indices[i], g_pos_tf_idf[word_indices[i]][j]] for i in g_topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
+        g_topN_words_for_each_topk_pos = []
+        for j in range(pos_max_num):
+            g_topN_words_for_each_topk_pos.append([])
+            for i in g_topN_word_indices_for_each_topk_pos[j]:
+                data_idx = np.array(g_pos_word_to_data_idx[word_indices[i]])
+                data_idx = data_idx[np.where(data_idx <= j)[0]].tolist()
+                g_topN_words_for_each_topk_pos[j].append([word_indices[i], g_pos_tf_idf[word_indices[i]][j], data_idx])
 
         g_topN_word_indices_for_each_topk_neg = np.argsort(-np.array(list(g_neg_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(g_neg_tf_idf.keys())
-        g_topN_words_for_each_topk_neg = [[[word_indices[i], g_neg_tf_idf[word_indices[i]][j]] for i in g_topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
+        # g_topN_words_for_each_topk_neg = [[[word_indices[i], g_neg_tf_idf[word_indices[i]][j]] for i in g_topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
+        g_topN_words_for_each_topk_neg = []
+        for j in range(neg_max_num):
+            g_topN_words_for_each_topk_neg.append([])
+            for i in g_topN_word_indices_for_each_topk_neg[j]:
+                data_idx = np.array(g_neg_word_to_data_idx[word_indices[i]])
+                data_idx = data_idx[np.where(data_idx <= j)[0]].tolist()
+                g_topN_words_for_each_topk_neg[j].append([word_indices[i], g_neg_tf_idf[word_indices[i]][j], data_idx])
 
         u_topN_word_indices_for_each_topk_pos = np.argsort(-np.array(list(u_pos_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(u_pos_tf_idf.keys())
-        u_topN_words_for_each_topk_pos = [[[word_indices[i], u_pos_tf_idf[word_indices[i]][j]] for i in u_topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
+        # u_topN_words_for_each_topk_pos = [[[word_indices[i], u_pos_tf_idf[word_indices[i]][j]] for i in u_topN_word_indices_for_each_topk_pos[j]] for j in range(pos_max_num)]
+        u_topN_words_for_each_topk_pos = []
+        for j in range(pos_max_num):
+            u_topN_words_for_each_topk_pos.append([])
+            for i in u_topN_word_indices_for_each_topk_pos[j]:
+                data_idx = np.array(u_pos_word_to_data_idx[word_indices[i]])
+                data_idx = data_idx[np.where(data_idx <= j)[0]].tolist()
+                u_topN_words_for_each_topk_pos[j].append([word_indices[i], u_pos_tf_idf[word_indices[i]][j], data_idx])
 
         u_topN_word_indices_for_each_topk_neg = np.argsort(-np.array(list(u_neg_tf_idf.values())), axis=0)[:N,:].T
         word_indices = list(u_neg_tf_idf.keys())
-        u_topN_words_for_each_topk_neg = [[[word_indices[i], u_neg_tf_idf[word_indices[i]][j]] for i in u_topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
+        # u_topN_words_for_each_topk_neg = [[[word_indices[i], u_neg_tf_idf[word_indices[i]][j]] for i in u_topN_word_indices_for_each_topk_neg[j]] for j in range(neg_max_num)]
+        u_topN_words_for_each_topk_neg = []
+        for j in range(neg_max_num):
+            u_topN_words_for_each_topk_neg.append([])
+            for i in u_topN_word_indices_for_each_topk_neg[j]:
+                data_idx = np.array(u_neg_word_to_data_idx[word_indices[i]])
+                data_idx = data_idx[np.where(data_idx <= j)[0]].tolist()
+                u_topN_words_for_each_topk_neg[j].append([word_indices[i], u_neg_tf_idf[word_indices[i]][j], data_idx])
 
         # send all the positively/negatively attributed data and their scores through message
+        iframe_id = f"iframe-{random.randint(0, 1000000)}"
         message_js = f"""
         (function() {{
             const event = new Event('compare');
@@ -960,6 +1032,7 @@ class LLMAttributor:
             event.gScoreHistogramBins = {list(g_bins)};
             event.uScoreHistogramCounts = {list(u_scoreHistogramCounts)};
             event.uScoreHistogramBins = {list(u_bins)};
+            event.iframeId = "{iframe_id}";
             document.dispatchEvent(event);
         }}())
         """
@@ -978,8 +1051,10 @@ class LLMAttributor:
         <iframe
             srcdoc="{html.escape(base_html_code)}"
             frameBorder="0"
+            scrolling="no"
             width="100%"
-            height="1000px">
+            height="1500px"
+            id={iframe_id}>
         </iframe>"""
         display_html(iframe, raw=True)
 
@@ -1064,20 +1139,23 @@ class LLMAttributor:
         
         return next_token_ids
 
-    def edit_text(self):
+    def edit_text(self, generated_text):
         html_code_filename = os.path.join(self.project_dir, "visualization/html/text_edit.html")
         css_code_filename = os.path.join(self.project_dir, "visualization/css/text_edit.css")
         html_code = open(html_code_filename, "r").read()
         css_code = "<style>" + open(css_code_filename, "r").read() + "</style>"
 
-        text_html_code, random_id = self.get_tokens_html_code(token_ids=self.generated_ids[0], attention_mask=np.ones(len(self.generated_ids[0])))
+        device = "cuda" if self.device=="auto" else self.device
+        generated_ids = torch.LongTensor(self._text_to_ids(generated_text)).to(device)
+
+        text_html_code, random_id = self.get_tokens_html_code(token_ids=generated_ids, attention_mask=np.ones(len(generated_ids[0])))
         # generate container for the generated text (should be split by word-unit not token-unit)
         random_int = random.randint(0, 1000000)
         random_id = f"tokens-container-{random_int}"
         text_html_code = f"<div class='words-container' id='{random_id}'>"
 
         w_idx = 0
-        for p_idx, paragraph in enumerate(self.generated_text.split("\n")):
+        for p_idx, paragraph in enumerate(generated_text.split("\n")):
             for word in paragraph.split(" "):
                 if "<" in word: word = word.replace("<", "&lt;")
                 if ">" in word: word = word.replace(">", "&gt;")

@@ -52,9 +52,10 @@ document.addEventListener("mousedown", function(event) {
 
 document.addEventListener("mouseup", function(event) {
     if (document.getElementsByClassName("text-wrapper")[0].deleting) {
-        if (event.target.classList.contains("word")) return;
         document.getElementsByClassName("text-wrapper")[0].deleting = false;
         document.getElementsByClassName("text-wrapper")[0].deleteFromElement = null;
+        return;
+        if (event.target.classList.contains("word")) return;
         
         // Revert to the original delete status
         let tokenList = document.getElementsByClassName("word")
@@ -66,10 +67,11 @@ document.addEventListener("mouseup", function(event) {
 
     }
     else if (document.getElementsByClassName("text-wrapper")[0].editDeleting) {
-        if (event.target.classList.contains("word")) return;
-        let editDeleteFromElement = document.getElementsByClassName("text-wrapper")[0].editDeleteFromElement;
         document.getElementsByClassName("text-wrapper")[0].editDeleting = false;
         document.getElementsByClassName("text-wrapper")[0].editDeleteFromElement = null;
+        return;
+        if (event.target.classList.contains("word")) return;
+        let editDeleteFromElement = document.getElementsByClassName("text-wrapper")[0].editDeleteFromElement;
 
         let tokenList = document.getElementsByClassName("word")
         for (let i=0; i<tokenList.length; i++) {
@@ -96,6 +98,7 @@ d3.selectAll(".button")
     .on("click", function(event) {
         if (this.id == "reset-button") {
             d3.select(".text-wrapper").html(document.getElementsByClassName("text-wrapper")[0].origianl_text_html);
+            setWordEvents();
             return;
         }
         if (document.getElementById(this.id).activated) document.getElementById(this.id).activated = false; 
@@ -110,15 +113,17 @@ d3.selectAll(".button")
 
         // should change cursor
         if (this.classList.contains("activated-button")) {
-            if (this.id=="add-button") d3.select("body").style("cursor", 'url("./LLMAttributor/visualization/icons/add-cursor.png"), zoom-in')
-            if (this.id=="delete-button") d3.select("body").style("cursor", 'url("./LLMAttributor/visualization/icons/delete-cursor.png"), zoom-in')
-            if (this.id=="edit-button") d3.select("body").style("cursor", 'url("./LLMAttributor/visualization/icons/edit-cursor.png"), zoom-in')
+            if (this.id=="add-button") d3.select("body").style("cursor", 'url("./LLMAttributor/visualization/cursors/add-cursor.png") 16 16, zoom-in')
+            if (this.id=="delete-button") d3.select("body").style("cursor", 'url("./LLMAttributor/visualization/cursors/delete-cursor.png") 16 16, zoom-in')
+            if (this.id=="edit-button") d3.select("body").style("cursor", 'url("./LLMAttributor/visualization/cursors/edit-cursor.png") 16 16, zoom-in')
         }
         else d3.select("body").style("cursor", "default")
     })
 
+function setWordEvents(){
 d3.selectAll(".word")
     .on("mouseover", function(event) {
+        console.log(event)
         if (document.getElementById("add-button").classList.contains("activated-button")) {
             d3.select(this).classed("left-adding-word", true)
         }
@@ -228,6 +233,8 @@ d3.selectAll(".word")
         if (document.getElementsByClassName("text-wrapper")[0].adding) return;
         if (document.getElementById("add-button").classList.contains("activated-button")) add_text(event, this);
     })
+}
+setWordEvents();
 
 function add_text(event, clickedElement) {
     document.getElementsByClassName("text-wrapper")[0].adding = true;

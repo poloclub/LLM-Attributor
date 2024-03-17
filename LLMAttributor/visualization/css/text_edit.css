@@ -9,24 +9,26 @@ body {
 
 /* buttons */
 .button {
-    width: 30px;
-    height: 30px;
+    width: fit-content;
     display: inline-block;
-    background-color: #a0a0a0;
-    border: #808080 1px solid;
+    background-color: #eaeaea;
+    border: #b0b0b0 1px solid;
     cursor: pointer;
+    padding: 3px 7px;
+    border-radius: 7px;
+    margin-right: 3px;
 }
 
 .activated-button {
-    background-color: red;
+    background-color: #9ecae1;
 }
 
 .button:hover {
-    background-color: #404040;
+    background-color: #c0c0c0;
 }
 
 .button.activated-button:hover {
-    background-color: #e00000;
+    background-color: #4292c6;
 }
 
 .text-wrapper {
@@ -37,7 +39,7 @@ body {
 .added-text {
     padding-left: 5.5px;
     display: inline-block;
-    color: #ff0000;
+    color: #d94801;
     font-weight: bold;
 }
 
@@ -52,27 +54,29 @@ body {
 }
 
 .left-adding-word {
-    background-color: #ff000040;
+    /* background-color: #ff000040; */
+    background-color: #fdd0a2;
     padding-left: 13.5px;
 }
 
 .deleted-word {
-    text-decoration: 3px line-through #ff0000;
+    /* text-decoration: 3px line-through #ff0000; */
+    text-decoration: 3px line-through #2171b5;
 }
 
 .delete-hovered-word {
-    text-decoration: 3px line-through #ff000080;
-    background: #ff000040;
+    text-decoration: 3px line-through #2171b5;
+    background: #9ecae1;
 }
 
 .edit-left-adding-word {
-    background-color: #ff000040;
+    background-color: #fdd0a2;
     padding-left: 13.5px;
 }
 
 .edit-hovered-word {
-    text-decoration: 3px line-through #ff000080;
-    background: #ff000040;
+    text-decoration: 3px line-through #2171b5;
+    background: #9ecae1;
 }
 
 
@@ -112,7 +116,7 @@ body {
 }
 
 /* .added-text { */
-}
+/* } */
 
 .deleted-token {
     text-decoration: 3px line-through #ff0000;
@@ -139,13 +143,18 @@ body {
     /* width: 30px;
     height: 30px; */
     display: inline-block;
-    background-color: #e0e0e0;
-    border: #808080 1px solid;
+    background-color: #eaeaea;
+    border: #b0b0b0 1px solid;
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 3px 7px;
     margin-bottom: 5px;
-    border-radius: 10px;
+    border-radius: 7px;
 }
+
+.copy-button:hover {
+    background-color: #c0c0c0;
+}
+
 .llm-attributor-deleted-text {
     display: none;
 }

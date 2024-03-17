@@ -10,7 +10,7 @@ document.addEventListener("selectAttrTokensPos", function(event) {
     tokensContainer.startToken = -1;
     tokensContainer.beingDragged = false;
     tokensContainer.selecting = false;
-    tokensContainer.highlightColor = "#FF0000";
+    tokensContainer.highlightColor = "#2171b5";
     tokensContainer.neutralColor = "#000000";
     tokensContainer.fadeColor = "#909090";
     for (tokenElement of document.getElementsByClassName("attended-token")) tokenElement.selected = false;
@@ -32,8 +32,9 @@ document.addEventListener("selectAttrTokensPos", function(event) {
 
 d3.selectAll(".attended-token").style("cursor", "pointer"); 
 
-d3.selectAll(".token").on("mousedown", function(event) {
-    let tokenElement = event.target 
+d3.selectAll(".attended-token").on("mousedown", function(event) {
+    // let tokenElement = event.target 
+    let tokenElement = this;
     let clickedTokenIdx = parseInt(tokenElement.id.split("-")[2]);
 
     if (clickedTokenIdx >= tokensContainer.prompt_token_num) {
@@ -61,11 +62,11 @@ document.addEventListener("mouseup", function(event) {
     tokensContainer.selecting = false;
 })
 
-d3.selectAll(".token").on("mouseenter", function(event) {
-    let enteredTokenElement = event.target 
+d3.selectAll(".attended-token").on("mouseenter", function(event) {
+    let enteredTokenElement = this
     let enteredTokenIdx = parseInt(enteredTokenElement.id.split("-")[2]);
 
-    if (enteredTokenIdx >= tokensContainer.prompt_token_num) enteredTokenElement.style.backgroundColor = `${tokensContainer.highlightColor}80`;
+    if (enteredTokenIdx >= tokensContainer.prompt_token_num) enteredTokenElement.style.backgroundColor = `${tokensContainer.highlightColor}60`;
     if (tokensContainer.beingDragged) {
         let start = Math.min(tokensContainer.startToken, enteredTokenIdx);
         let end = Math.max(tokensContainer.startToken, enteredTokenIdx);
@@ -77,7 +78,11 @@ d3.selectAll(".token").on("mouseenter", function(event) {
                 if (tokensContainer.selecting) tokenElement.classList.add("selected-token");
                 else tokenElement.classList.remove("selected-token");
             }
-            else tokenElement.newSelected = tokenElement.selected;
+            else {
+                tokenElement.newSelected = tokenElement.selected;
+                if (tokenElement.selected) tokenElement.classList.add("selected-token");
+                else tokenElement.classList.remove("selected-token");
+            }
         }
     }      
 })

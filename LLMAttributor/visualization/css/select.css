@@ -1,0 +1,248 @@
+:root {
+    --highlighted-token-color: #2171b5;
+    --attended-token-color: #000000;
+    --unattended-token-color: #909090;
+}
+
+body {
+    font-family: sans-serif;
+}
+
+.header {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.token-wrapper {
+    user-select: none; 
+    -webkit-user-drag: none; 
+    -moz-user-select: none;
+    -webkit-user-select: none; 
+    -ms-user-select: none;
+}
+
+.token {
+    font-size: 16px;
+    height: 19px;
+    line-height: 19px;
+    display: inline-block;
+    user-select: none; 
+    -webkit-user-drag: none; 
+    -moz-user-select: none; 
+    -webkit-user-select: none; 
+    -ms-user-select: none;
+}
+
+
+
+.attended-token {
+    color: var(--attended-token-color);
+}
+
+.unattended-token {
+    color: var(--unattended-token-color);
+}
+
+.attended-token.selected-token,
+.unattended-token.selected-token {
+    color: var(--highlighted-token-color);
+}
+
+.token.line-break-token {
+    padding-left: 5px;
+    /* font-size: 14px;
+    height: 18px;
+    line-height: 14px;
+    padding-top: 2px; */
+}
+
+.space-token {
+    padding-left: 4px;
+}
+
+.left-space-token {
+    padding-left: 6px;
+}
+
+.first-in-line-token.left-space-token {
+    padding-left: 0px;
+}
+
+.copy-selected-token-idx-button {
+    font-size: 16px;
+    display: inline-block;
+    color: #404040;
+    background-color: #e0e0e0;
+    padding: 5px 9px;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    margin-top: 20px;
+    border-radius: 10px;
+}
+
+.copy-selected-token-idx-button:hover {
+    background-color: #d0d0d0;
+}
+
+.selected-token-indices {
+    font-size: 16px;
+    display: inline-block;
+    color: #404040;
+    text-decoration: none;
+    border: none;
+    margin-top: 20px;
+    margin-left: 7px;
+}
+
+/* Attribution Visualization */
+.prompt-text-wrapper {
+    margin-bottom: 15px;
+}
+
+.prompt-wrapper, .generated-text-wrapper, .compared-title {
+    margin-bottom: 5px;
+}
+
+.compared-wrapper {
+    display: none;
+}
+
+.prompt-title {
+    font-size: 14px;
+    color: #a0a0a0;
+    padding: 5px 0px 0px 2px;
+}
+
+.prompt {
+    font-size: 14px;
+    color: #808080;
+    padding-left: 2px;
+}
+
+.generated-title, 
+.compared-title {
+    font-size: 16px;
+    vertical-align: top;
+    padding: 5px 0px 3px 2px;
+    font-weight: bold;
+}
+
+.generated-title {
+    color: #D73027;
+}
+
+.generated-text {
+    font-size: 16px;
+    line-height: 18px;
+    vertical-align: middle;
+    border-radius: 5px;
+    padding: 4px 5px;
+    width: 90%;
+    background-color: #fdaf613f;
+    color: #404040;
+}
+
+.result-wrapper {
+    position: relative;
+}
+
+.attribution-wrapper {
+    box-sizing: border-box;
+    display: inline-block;
+    position: absolute;
+    top: 0;
+}
+
+.data-details-wrapper {
+    right: 0;
+}
+
+.positive-attribution-wrapper,
+.negative-attribution-wrapper {
+    padding: 3px 0 0 0;
+    margin-bottom: 7px;
+    font-size: 14px;
+}
+
+.positive-attribution-title-wrapper, 
+.negative-attribution-title-wrapper {
+    padding-bottom: 5px;
+    font-size: 16px;
+}
+
+.positive-attribution-title, 
+.negative-attribution-title, 
+.positive-attribution-score-title, 
+.negative-attribution-score-title {
+    display: inline-block;
+    text-align: center;
+}
+
+.positive-attribution-score-title, 
+.positive-attribution-title {
+    color: #d6604d;
+}
+
+.negative-attribution-score-title, 
+.negative-attribution-title {
+    color: #4393c3;
+}
+
+.attribution-title {
+    width: calc((90% - 5px) * 0.75);
+}
+
+.attribution-score-title {
+    width: calc((90% - 5px) * 0.25);
+}
+
+.attributed-text {
+    width: calc((90% - 5px) * 0.75);
+    color: #404040;
+    cursor: pointer;
+    line-height: 1.2em;
+    overflow: hidden;
+    padding: 7px;
+    margin-bottom: 7px;
+    border-radius: 5px;
+}
+
+.attributed-text:hover {
+    transform: scale(1.01);
+}
+
+.positive-attributed-text {
+    background-color: #FEE09050;
+}
+
+.positive-attributed-text:hover {
+    background-color: #fee09060;
+}
+
+.negative-attributed-text {
+    background-color: #E0F3F850;
+}
+
+.negative-attributed-text:hover {
+    background-color: #E0F3F860;
+}
+
+.data-details-full-text {
+    padding: 0px 7px 0px 7px;
+}
+
+.data-details-full-text .token {
+    font-size: 14px;
+    height: 17px;
+    line-height: 17px;
+}
+
+.data-details-full-text .left-space-token {
+    padding-left: 5px;
+}
+
+.data-details-full-text .left-space-token.first-in-line-token {
+    padding-left: 0px;
+}
