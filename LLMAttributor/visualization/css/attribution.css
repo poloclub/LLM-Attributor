@@ -26,10 +26,24 @@ body {
     font-family: sans-serif;
 }
 
+.llm-attributor-logo-icon {
+    width: 50px;
+    height: 50px;
+    float: left;
+}
+
 .header {
-    font-size: 24px;
+    font-size: 30px;
+    width: 276px;
     font-weight: bold;
     text-align: center;
+    font-variant: small-caps;
+    position: relative;
+    left: calc(50% - 138px);
+    color: #404040;
+    margin: 15px 0px 5px 0px;
+    line-height: 50px;
+    vertical-align: middle;
 }
 
 /* Attribution Visualization */

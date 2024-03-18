@@ -713,6 +713,7 @@ class LLMAttributor:
         base_html_code = open(os.path.join(vis_dir, "html/attribution.html"), "r").read()
         css_code = f"<style>{open(os.path.join(vis_dir, 'css/attribution.css'), 'r').read()}</style>"
 
+        base_html_code = base_html_code.replace("<!--logo-slot-->", f"{open(os.path.join(vis_dir, 'icons/logo_color.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--robot-icon-->", f"{open(os.path.join(vis_dir, 'icons/robot.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--up-solid-icon-->", f"{open(os.path.join(vis_dir, 'icons/up-solid.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--down-icon-->", f"{open(os.path.join(vis_dir, 'icons/down.svg'), 'r').read()}")
@@ -875,6 +876,7 @@ class LLMAttributor:
         base_html_code = open(os.path.join(vis_dir, "html/compare.html"), "r").read()
         css_code = f"<style>{open(os.path.join(vis_dir, 'css/compare.css'), 'r').read()}</style>"
 
+        base_html_code = base_html_code.replace("<!--logo-slot-->", f"{open(os.path.join(vis_dir, 'icons/logo_color.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--robot-icon-->", f"{open(os.path.join(vis_dir, 'icons/robot.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--user-icon-->", f"{open(os.path.join(vis_dir, 'icons/user.svg'), 'r').read()}")
         base_html_code = base_html_code.replace("<!--up-solid-icon-->", f"{open(os.path.join(vis_dir, 'icons/up-solid.svg'), 'r').read()}")
