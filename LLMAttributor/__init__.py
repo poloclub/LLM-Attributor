@@ -2,6 +2,6 @@
 
 __author__ = """Seongmin Lee"""
 __email__ = "seongmin@gatech.edu"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from LLMAttributor.LLMAttributor import *

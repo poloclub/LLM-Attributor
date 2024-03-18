@@ -13,7 +13,7 @@ requirements = ["ipython", "tqdm", "torch", "transformers", "datasets", "peft"]
 
 test_requirements = []
 
-version = "0.1.0"
+version = "0.1.1"
 
 setup(
     author="Seongmin Lee",
