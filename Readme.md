@@ -3,6 +3,17 @@
 
 [![license](https://img.shields.io/badge/License-MIT-success)]()
 [![pypi](https://img.shields.io/pypi/v/wizmap?color=blue)](https://pypi.org/project/llm-attributor/)
+<!-- [![arxiv badge](https://img.shields.io/badge/arXiv-2306.09328-red)](https://arxiv.org/abs/2306.09328) -->
+
+<table>
+<tr>
+    <td colspan="2"><img src="./assets/crownjewel.png" style="width: 100%"></td>
+</tr>
+<tr>
+    <td><a href="https://youtu.be/mIG2MDQKQxM">📺 Demo Video</a></td>
+    <td><a href="">📜 Research Paper</a></td>
+</tr>
+</table>
 
 ## What is LLM Attributor?
 
