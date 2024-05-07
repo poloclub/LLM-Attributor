@@ -2,8 +2,8 @@
 
 
 [![license](https://img.shields.io/badge/License-MIT-success)]()
-[![pypi](https://img.shields.io/pypi/v/wizmap?color=blue)](https://pypi.org/project/llm-attributor/)
-<!-- [![arxiv badge](https://img.shields.io/badge/arXiv-2306.09328-red)](https://arxiv.org/abs/2306.09328) -->
+[![pypi](https://img.shields.io/pypi/v/llm-attributor?color=blue)](https://pypi.org/project/llm-attributor/)
+[![arxiv badge](https://img.shields.io/badge/arXiv-2404.01361-red)](https://arxiv.org/abs/2404.01361)
 
 <table>
 <tr>
