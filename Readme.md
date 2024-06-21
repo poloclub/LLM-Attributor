@@ -13,7 +13,7 @@ LLM Attributor helps you visualize training data attribution of text generation 
 </tr>
 <tr>
     <td>🎬 <a href="https://youtu.be/mIG2MDQKQxM">Demo YouTube Video</a></td>
-    <td>✍️ <a href="">Technical Report</a></td>
+    <td>✍️ <a href="https://arxiv.org/abs/2404.01361">Technical Report</a></td>
 </tr>
 </table>
 
