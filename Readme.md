@@ -1,4 +1,4 @@
-# LLM Attributor: Interactive Visual Attribution for LLM Generation <img align="right" src="./LLMAttributor/visualization/icons/logo_color.svg" height="35"></img>
+# LLM Attributor: Attribute LLM's Generated Text to Training Data <img align="right" src="./LLMAttributor/visualization/icons/logo_color.svg" height="35"></img>
 
 LLM Attributor helps you visualize training data attribution of text generation of your large language models (LLMs). Interactively select text phrases and visualize the training data points responsible for generating the selected phrases. Easily modify model-generated text and observe how your changes affect the attribution with a visualized side-by-side comparison.
 
