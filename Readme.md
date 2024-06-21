@@ -12,10 +12,14 @@ LLM Attributor helps you visualize training data attribution of text generation 
     <td colspan="2"><img src="./assets/crownjewel.png" style="width: 100%"></td>
 </tr>
 <tr>
-    <td><a href="https://youtu.be/mIG2MDQKQxM">📺 Demo Video</a></td>
-    <td><a href="">📜 Research Paper</a></td>
+    <td>🎬 <a href="https://youtu.be/mIG2MDQKQxM">Demo YouTube Video</a></td>
+    <td>✍️ <a href="">Technical Report</a></td>
 </tr>
 </table>
+
+## Feature Highlights
+<video width="100%" src='https://github.com/poloclub/LLM-Attributor/assets/5067740/62493798-394e-4579-b29a-8ad67f5790ff'></video>
+
 
 ## Getting Started
 ### Installation
