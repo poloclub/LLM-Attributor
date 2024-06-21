@@ -1,4 +1,6 @@
-# LLM Attributor <img align="right" src="./LLMAttributor/visualization/icons/logo_color.svg" height="35"></img>
+# LLM Attributor: Interactive Visual Attribution for LLM Generation <img align="right" src="./LLMAttributor/visualization/icons/logo_color.svg" height="35"></img>
+
+LLM Attributor helps you visualize training data attribution of text generation of your large language models (LLMs). Interactively select text phrases and visualize the training data points responsible for generating the selected phrases. Easily modify model-generated text and observe how your changes affect the attribution with a visualized side-by-side comparison.
 
 
 [![license](https://img.shields.io/badge/License-MIT-success)]()
@@ -14,10 +16,6 @@
     <td><a href="">📜 Research Paper</a></td>
 </tr>
 </table>
-
-## What is LLM Attributor?
-
-LLM Attributor is a Python library to help you visualize training data attribution of text generation of your large language models (LLMs). Using LLM Attributor, you can interactively select specific phrases and visualize the training data points responsible for generating the selected phrases. You can also easily modify model-generated text and observe how the modification affects the attribution with a visualized side-by-side comparison.
 
 ## Getting Started
 ### Installation
